@@ -11,8 +11,8 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.mojang:datafixerupper:7.0.13")
-    compileOnly("com.google.code.gson:gson:2.10.1")
+    implementation("com.mojang:datafixerupper:7.0.13")
+    implementation("com.google.code.gson:gson:2.10.1")
 }
 
 gradlePlugin {
