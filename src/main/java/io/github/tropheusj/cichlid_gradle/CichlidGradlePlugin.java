@@ -5,7 +5,7 @@ import org.gradle.api.Project;
 
 public class CichlidGradlePlugin implements Plugin<Project> {
 	@Override
-	public void apply(Project target) {
-
+	public void apply(Project project) {
+//		project.getRepositories().add()
 	}
 }

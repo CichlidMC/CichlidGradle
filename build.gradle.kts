@@ -7,9 +7,12 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    maven { setUrl("https://libraries.minecraft.net") }
 }
 
 dependencies {
+    compileOnly("com.mojang:datafixerupper:7.0.13")
+    compileOnly("com.google.code.gson:gson:2.10.1")
 }
 
 gradlePlugin {
