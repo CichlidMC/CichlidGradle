@@ -1,4 +1,4 @@
-package io.github.tropheusj.cichlid_gradle.pistonmeta;
+package io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta;
 
 import java.util.Locale;
 

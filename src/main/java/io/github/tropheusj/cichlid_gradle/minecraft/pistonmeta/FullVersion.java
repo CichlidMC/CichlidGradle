@@ -1,4 +1,4 @@
-package io.github.tropheusj.cichlid_gradle.pistonmeta;
+package io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta;
 
 import java.net.URI;
 import java.util.List;
@@ -9,12 +9,13 @@ import java.util.function.Function;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.tropheusj.cichlid_gradle.util.Downloadable;
 import io.github.tropheusj.cichlid_gradle.util.UriCodec;
 
 public record FullVersion(
 		Arguments args, AssetIndex assetIndex, String assets, int complianceLevel,
 		Downloads downloads, String id, JavaVersion javaVersion, List<Library> libraries, Logging logging,
-		String mainClass, int minLauncherVersion, String releaseTime, String time, VersionType type) {
+		String mainClass, Optional<Integer> minLauncherVersion, String releaseTime, String time, VersionType type) {
 	public static final Codec<FullVersion> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 			Arguments.CODEC.fieldOf("arguments").forGetter(FullVersion::args),
 			AssetIndex.CODEC.fieldOf("assetIndex").forGetter(FullVersion::assetIndex),
@@ -26,7 +27,7 @@ public record FullVersion(
 			Library.CODEC.listOf().fieldOf("libraries").forGetter(FullVersion::libraries),
 			Logging.CODEC.fieldOf("logging").forGetter(FullVersion::logging),
 			Codec.STRING.fieldOf("mainClass").forGetter(FullVersion::mainClass),
-			Codec.INT.fieldOf("minLauncherVersion").forGetter(FullVersion::minLauncherVersion),
+			Codec.INT.optionalFieldOf("minLauncherVersion").forGetter(FullVersion::minLauncherVersion),
 			Codec.STRING.fieldOf("releaseTime").forGetter(FullVersion::releaseTime),
 			Codec.STRING.fieldOf("time").forGetter(FullVersion::time),
 			VersionType.CODEC.fieldOf("type").forGetter(FullVersion::type)
@@ -36,8 +37,11 @@ public record FullVersion(
 		public static final Codec<Features> CODEC = Codec.unboundedMap(Codec.STRING, Codec.BOOL).xmap(Features::new, Features::features);
 	}
 
-	public record Os(String name) {
-		public static final Codec<Os> CODEC = Codec.STRING.xmap(Os::new, Os::name);
+	public record Os(Optional<String> name, Optional<String> arch) {
+		public static final Codec<Os> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+				Codec.STRING.optionalFieldOf("name").forGetter(Os::name),
+				Codec.STRING.optionalFieldOf("arch").forGetter(Os::arch)
+		).apply(instance, Os::new));
 	}
 
 	public record Rule(String action, Optional<Features> features, Optional<Os> os) {
@@ -80,7 +84,7 @@ public record FullVersion(
 		).apply(instance, AssetIndex::new));
 	}
 
-	public record Download(String sha1, int size, URI url) {
+	public record Download(String sha1, int size, URI url) implements Downloadable {
 		public static final Codec<Download> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 				Codec.STRING.fieldOf("sha1").forGetter(Download::sha1),
 				Codec.INT.fieldOf("size").forGetter(Download::size),
@@ -104,7 +108,7 @@ public record FullVersion(
 		).apply(instance, JavaVersion::new));
 	}
 
-	public record Artifact(String path, String sha1, int size, URI url) {
+	public record Artifact(String path, String sha1, int size, URI url) implements Downloadable {
 		public static final Codec<Artifact> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 				Codec.STRING.fieldOf("path").forGetter(Artifact::path),
 				Codec.STRING.fieldOf("sha1").forGetter(Artifact::sha1),

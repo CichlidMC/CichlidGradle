@@ -1,15 +1,20 @@
-package io.github.tropheusj.cichlid_gradle.pistonmeta;
+package io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
@@ -21,6 +26,7 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 	public static final URI URL = URI.create("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
 
 	private static final HttpClient client = HttpClient.newBuilder().build();
+	private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
 	public static final Codec<VersionManifest> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 			LatestVersions.CODEC.fieldOf("latest").forGetter(VersionManifest::latest),
@@ -33,6 +39,15 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 		return map;
 	}
 
+	public void save(Path path) {
+		JsonElement json = CODEC.encodeStart(JsonOps.INSTANCE, this).getOrThrow();
+        try {
+            Files.writeString(path, gson.toJson(json));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 	public static VersionManifest fetch() {
 		HttpRequest request = HttpRequest.newBuilder(URL).GET().build();
 		try {
@@ -40,6 +55,15 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 			JsonElement json = JsonParser.parseString(response.body());
 			return CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
 		} catch (IOException | InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static VersionManifest ofFile(Path path) {
+		try (BufferedReader reader = Files.newBufferedReader(path)) {
+			JsonElement json = JsonParser.parseReader(reader);
+			return CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
