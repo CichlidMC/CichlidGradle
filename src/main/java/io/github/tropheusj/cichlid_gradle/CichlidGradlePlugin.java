@@ -11,6 +11,8 @@ public class CichlidGradlePlugin implements Plugin<Project> {
 		CichlidExtension extension = project.getExtensions().create(
 				CichlidExtension.class, "cichlid", CichlidExtensionImpl.class
 		);
-
+		project.getConfigurations().create("a", c -> {
+			c.files()
+		})
 	}
 }
