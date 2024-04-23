@@ -42,6 +42,7 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 	public void save(Path path) {
 		JsonElement json = CODEC.encodeStart(JsonOps.INSTANCE, this).getOrThrow();
         try {
+			Files.createDirectories(path.getParent());
             Files.writeString(path, gson.toJson(json));
         } catch (IOException e) {
             throw new RuntimeException(e);
