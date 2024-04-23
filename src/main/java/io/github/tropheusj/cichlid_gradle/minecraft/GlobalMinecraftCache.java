@@ -3,14 +3,17 @@ package io.github.tropheusj.cichlid_gradle.minecraft;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Rule;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest;
 import io.github.tropheusj.cichlid_gradle.util.Downloadable;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -23,6 +26,10 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Global cache for unmodified Minecraft jars and mappings.
@@ -75,6 +82,24 @@ public class GlobalMinecraftCache {
         });
     }
 
+    public Set<Path> getLibraries(String version, RuleContext ctx) {
+        return this.getLocked(() -> {
+            Path libraries = this.libraries.resolve(version);
+            Set<Path> files = new HashSet<>();
+            try (Stream<Path> stream = Files.walk(libraries)) {
+                for (Path path : stream.toList()) {
+                    if (!Files.isDirectory(path)) {
+                        List<Rule> rules = this.getRulesForLibrary(path);
+                        if (ctx.matches(rules)) {
+                            files.add(path);
+                        }
+                    }
+                }
+            }
+            return files;
+        });
+    }
+
     private void tryDownload(String versionString) throws IOException {
         VersionManifest manifest = VersionManifest.fetch();
         VersionManifest.Version version = manifest.mapVersions().get(versionString);
@@ -97,6 +122,10 @@ public class GlobalMinecraftCache {
             FullVersion.Artifact artifact = library.download().artifact();
             String path = artifact.path();
             this.downloadFile(libs.resolve(path), artifact);
+            if (!library.rules().isEmpty()) {
+                Path rules = libs.resolve(path + ".rules");
+                writeWithCodec(rules, Rule.CODEC.listOf(), library.rules());
+            }
         }
     }
 
@@ -111,7 +140,7 @@ public class GlobalMinecraftCache {
             long start = System.currentTimeMillis();
             byte[] data = client.send(request, HttpResponse.BodyHandlers.ofByteArray()).body();
             long end = System.currentTimeMillis();
-            int mb = data.length / 1000 / 1000;
+            String mb = String.format("%.3f", data.length / 1000f / 1000f);
             logger.lifecycle("Downloaded {}mb in {}ms.", mb, end - start);
             // validate
             if (download.size() != data.length) {
@@ -129,6 +158,19 @@ public class GlobalMinecraftCache {
         }
     }
 
+    private List<Rule> getRulesForLibrary(Path lib) {
+        Path rulesFile = lib.resolveSibling(lib.getFileName().toString() + ".rules");
+        if (Files.exists(rulesFile)) {
+            try (BufferedReader reader = Files.newBufferedReader(rulesFile)) {
+                JsonElement json = JsonParser.parseReader(reader);
+                return Rule.CODEC.listOf().decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return List.of();
+    }
+
     private <T> void writeWithCodec(Path path, Codec<T> codec, T obj) throws IOException {
         JsonElement json = codec.encodeStart(JsonOps.INSTANCE, obj).getOrThrow();
         Files.createFile(path);
@@ -137,9 +179,16 @@ public class GlobalMinecraftCache {
 
     private void runLocked(IoRunnable runnable) {
         synchronized (lock) {
-            try (FileChannel channel = FileChannel.open(this.lockFile, StandardOpenOption.WRITE);
-                 FileLock ignored = channel.lock()) {
-                runnable.run();
+            try {
+                if (!Files.exists(this.lockFile)) {
+                    // can't use open option, gradle breaks it
+                    Files.createDirectories(this.root);
+                    Files.createFile(this.lockFile);
+                }
+
+                try (FileChannel channel = FileChannel.open(this.lockFile, StandardOpenOption.WRITE); FileLock ignored = channel.lock()) {
+                    runnable.run();
+                }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

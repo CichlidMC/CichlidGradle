@@ -42,6 +42,8 @@ public record FullVersion(
 				Codec.STRING.optionalFieldOf("name").forGetter(Os::name),
 				Codec.STRING.optionalFieldOf("arch").forGetter(Os::arch)
 		).apply(instance, Os::new));
+
+		public static final Os CURRENT = new Os(Optional.of(System.getProperty("os.name")), Optional.of(System.getProperty("os.arch")));
 	}
 
 	public record Rule(String action, Optional<Features> features, Optional<Os> os) {
