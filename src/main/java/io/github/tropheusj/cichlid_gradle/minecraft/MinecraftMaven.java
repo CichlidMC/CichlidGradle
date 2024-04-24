@@ -1,9 +1,13 @@
 package io.github.tropheusj.cichlid_gradle.minecraft;
 
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Artifact;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Library;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest.Version;
 import org.gradle.api.invocation.Gradle;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -36,19 +40,23 @@ public class MinecraftMaven {
         latest.save(manifest);
 
         for (Side side : Side.values()) {
-            Path minecraft = path.resolve("net/minecraft/minecraft-" + side);
-            makeMetadata(latest, "minecraft-" + side.name, minecraft.resolve("maven-metadata.xml"));
+            String artifactName = "minecraft-" + side;
+            Path minecraft = path.resolve("net/minecraft/" + artifactName);
+
+            makeMetadata(latest, artifactName, minecraft.resolve("maven-metadata.xml"));
 
             for (VersionManifest.Version version : latest.versions()) {
-                String name = version.id();
-                Path dir = minecraft.resolve(name);
-                Path jar = dir.resolve("minecraft-" + side + '-' + name + ".jar");
+                String versionName = version.id();
+                Path dir = minecraft.resolve(versionName);
+                Path jar = dir.resolve(artifactName + '-' + versionName + ".jar");
                 if (Files.exists(jar))
                     continue;
+                Path pom = dir.resolve(artifactName + '-' + versionName + ".pom");
 
                 try {
                     Files.createDirectories(jar.getParent());
                     Files.createFile(jar);
+                    makePom(version, artifactName, pom);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -56,31 +64,72 @@ public class MinecraftMaven {
         }
     }
 
+    private static void makePom(Version version, String artifactName, Path file) {
+        try {
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document xml = builder.newDocument();
+
+            Node project = xml.appendChild(xml.createElement("project"));
+
+            Node groupId = project.appendChild(xml.createElement("groupId"));
+            groupId.setTextContent("net.minecraft");
+
+            Node artifactId = project.appendChild(xml.createElement("artifactId"));
+            artifactId.setTextContent(artifactName);
+
+            Node versionElement = project.appendChild(xml.createElement("version"));
+            versionElement.setTextContent(version.id());
+
+            Node dependencies = project.appendChild(xml.createElement("dependencies"));
+
+            FullVersion fullVersion = version.expand();
+            for (Library library : fullVersion.libraries()) {
+                Node dependency = dependencies.appendChild(xml.createElement("dependency"));
+                String[] split = library.name().split(":");
+
+                Node libGroup = dependency.appendChild(xml.createElement("groupId"));
+                libGroup.setTextContent(split[0]);
+
+                Node libArtifact = dependency.appendChild(xml.createElement("artifactId"));
+                libArtifact.setTextContent(split[1]);
+
+                Node libVersion = dependency.appendChild(xml.createElement("version"));
+                libVersion.setTextContent(split[2]);
+
+                Node scope = dependency.appendChild(xml.createElement("scope"));
+                scope.setTextContent("compile");
+            }
+
+            DOMSource source = new DOMSource(xml);
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+
+            Files.createDirectories(file.getParent());
+            try (OutputStream stream = Files.newOutputStream(file)) {
+                transformer.transform(source, new StreamResult(stream));
+            }
+        } catch (IOException | ParserConfigurationException | TransformerException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private static void makeMetadata(VersionManifest manifest, String artifactName, Path file) {
         try {
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             Document xml = builder.newDocument();
-            Element metadata = xml.createElement("metadata");
-            xml.appendChild(metadata);
+            Node metadata = xml.appendChild(xml.createElement("metadata"));
 
-            Element groupId = xml.createElement("groupId");
+            Node groupId = metadata.appendChild(xml.createElement("groupId"));
             groupId.setTextContent("net.minecraft");
-            metadata.appendChild(groupId);
 
-            Element artifactId = xml.createElement("artifactId");
+            Node artifactId = metadata.appendChild(xml.createElement("artifactId"));
             artifactId.setTextContent(artifactName);
-            metadata.appendChild(artifactId);
 
-            Element versioning = xml.createElement("versioning");
-            metadata.appendChild(versioning);
-
-            Element versions = xml.createElement("versions");
-            versioning.appendChild(versions);
+            Node versioning = metadata.appendChild(xml.createElement("versioning"));
+            Node versions = versioning.appendChild(xml.createElement("versions"));
 
             for (VersionManifest.Version version : manifest.versions()) {
-                Element element = xml.createElement("version");
+                Node element = versions.appendChild(xml.createElement("version"));
                 element.setTextContent(version.id());
-                versions.appendChild(element);
             }
 
             DOMSource source = new DOMSource(xml);

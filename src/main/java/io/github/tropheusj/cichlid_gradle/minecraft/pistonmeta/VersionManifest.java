@@ -93,8 +93,8 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 				HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 				JsonElement json = JsonParser.parseString(response.body());
 				return FullVersion.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
-			} catch (IOException | InterruptedException e) {
-				throw new RuntimeException(e);
+			} catch (Exception e) {
+				throw new RuntimeException("Error expanding version " + this.id, e);
 			}
 		}
 	}
