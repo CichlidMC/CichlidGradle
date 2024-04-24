@@ -13,13 +13,17 @@ import javax.inject.Inject;
 
 
 public abstract class CichlidGradlePlugin implements Plugin<Project> {
+	private final RepositoryTransportFactory repositoryTransportFactory;
+
 	@Inject
 	public CichlidGradlePlugin(RepositoryTransportFactory repositoryTransportFactory) {
-		McMavenConnectorFactory.inject(repositoryTransportFactory);
+		this.repositoryTransportFactory = repositoryTransportFactory;
 	}
 
 	@Override
 	public void apply(Project project) {
+		McMavenConnectorFactory.inject(repositoryTransportFactory, project.getGradle().getGradleUserHomeDir());
+
 		CichlidExtension extension = project.getExtensions().create(
 				CichlidExtension.class, "cichlid", CichlidExtensionImpl.class
 		);
@@ -31,7 +35,7 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 
 		project.getRepositories().maven(repo -> {
 			repo.setName("Minecraft");
-            repo.setUrl(URI.create("mcmaven://aaa"));
+            repo.setUrl(URI.create("mcmaven:///"));
         });
 	}
 }

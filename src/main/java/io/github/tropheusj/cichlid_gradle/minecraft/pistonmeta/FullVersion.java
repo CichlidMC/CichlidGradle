@@ -9,6 +9,7 @@ import java.util.function.Function;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.tropheusj.cichlid_gradle.minecraft.Side;
 import io.github.tropheusj.cichlid_gradle.util.Downloadable;
 import io.github.tropheusj.cichlid_gradle.util.UriCodec;
 
@@ -101,6 +102,14 @@ public record FullVersion(
 				Download.CODEC.fieldOf("server").forGetter(Downloads::server),
 				Download.CODEC.fieldOf("server_mappings").forGetter(Downloads::serverMappings)
 		).apply(instance, Downloads::new));
+
+		public Download jar(Side side) {
+			return switch (side) {
+				case CLIENT -> this.client;
+				case SERVER -> this.server;
+				case MERGED -> throw new IllegalArgumentException();
+			};
+		}
 	}
 
 	public record JavaVersion(String component, int majorVersion) {
