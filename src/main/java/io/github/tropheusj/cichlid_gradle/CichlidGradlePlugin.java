@@ -25,6 +25,11 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 		);
 
 		project.getRepositories().maven(repo -> {
+			repo.setName("Minecraft Libraries");
+			repo.setUrl(URI.create("https://libraries.minecraft.net/"));
+		});
+
+		project.getRepositories().maven(repo -> {
 			repo.setName("Minecraft");
             repo.setUrl(URI.create("mcmaven://aaa"));
         });
