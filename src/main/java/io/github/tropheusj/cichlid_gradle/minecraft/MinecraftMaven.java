@@ -107,11 +107,12 @@ public class MinecraftMaven {
     private void downloadSide(FullVersion version, Side side) {
         // download the jar
         Path dir = this.root.resolve("net/minecraft/minecraft-" + side).resolve(version.id());
-        String archiveName = "minecraft-" + side + '-' + version.id();
-        Path dest = dir.resolve(archiveName + ".jar");
+        String archiveName = "minecraft-" + side;
+        String filename = archiveName + '-' + version.id();
+        Path dest = dir.resolve(filename + ".jar");
         FileUtils.download(version.downloads().jar(side), dest);
         // generate a POM
-        this.makePom(version, archiveName, dir.resolve(archiveName + ".pom"));
+        this.makePom(version, archiveName, dir.resolve(filename + ".pom"));
     }
 
     private <T> T getLocked(IoSupplier<T> supplier) {
