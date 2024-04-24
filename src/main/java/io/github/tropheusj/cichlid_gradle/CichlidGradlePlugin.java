@@ -2,26 +2,27 @@ package io.github.tropheusj.cichlid_gradle;
 
 import java.net.URI;
 
-import javax.inject.Inject;
-
 import io.github.tropheusj.cichlid_gradle.extension.CichlidExtension;
 import io.github.tropheusj.cichlid_gradle.extension.CichlidExtensionImpl;
-import io.github.tropheusj.cichlid_gradle.minecraft.MinecraftMaven;
+import io.github.tropheusj.cichlid_gradle.minecraft.mcmaven.McMavenConnectorFactory;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.internal.artifacts.repositories.transport.RepositoryTransportFactory;
 
-public class CichlidGradlePlugin implements Plugin<Project> {
+import javax.inject.Inject;
+
+
+public abstract class CichlidGradlePlugin implements Plugin<Project> {
 	@Inject
-	RepositoryTransportFactory hh;
+	public CichlidGradlePlugin(RepositoryTransportFactory repositoryTransportFactory) {
+		McMavenConnectorFactory.inject(repositoryTransportFactory);
+	}
 
 	@Override
 	public void apply(Project project) {
 		CichlidExtension extension = project.getExtensions().create(
 				CichlidExtension.class, "cichlid", CichlidExtensionImpl.class
 		);
-
-		hh.toString();
 
 		project.getRepositories().maven(repo -> {
 			repo.setName("Minecraft");
