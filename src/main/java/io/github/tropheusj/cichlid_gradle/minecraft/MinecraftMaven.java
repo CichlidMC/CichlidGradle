@@ -2,11 +2,12 @@ package io.github.tropheusj.cichlid_gradle.minecraft;
 
 import com.google.common.base.Suppliers;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion;
-import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Library;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest.Version;
 import io.github.tropheusj.cichlid_gradle.util.FileUtils;
 import io.github.tropheusj.cichlid_gradle.util.IoSupplier;
+import io.github.tropheusj.cichlid_gradle.util.XmlBuilder;
+import io.github.tropheusj.cichlid_gradle.util.XmlBuilder.XmlElement;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +17,6 @@ import org.w3c.dom.Node;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
@@ -30,6 +30,8 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -134,83 +136,31 @@ public class MinecraftMaven {
     }
 
     private void makePom(FullVersion version, String artifactName, Path file) {
+        XmlBuilder pom = XmlBuilder.create().add(new XmlElement("project", List.of(
+                new XmlElement("groupId", "net.minecraft"),
+                new XmlElement("artifactId", artifactName),
+                new XmlElement("version", version.id()),
+                new XmlElement("dependencies", version.libraries().stream().map(library -> {
+                    String[] split = library.name().split(":");
+                    XmlElement element = new XmlElement("dependency", new ArrayList<>(List.of(
+                            new XmlElement("groupId", split[0]),
+                            new XmlElement("artifactId", split[1]),
+                            new XmlElement("version", split[2]),
+                            new XmlElement("scope", "compile")
+                    )));
+                    if (split.length > 3) {
+                        element.children().add(new XmlElement("classifier", split[3]));
+                    }
+                    return element;
+                }).toList())
+        )));
+
         try {
-            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-            Document xml = builder.newDocument();
-
-            Node project = xml.appendChild(xml.createElement("project"));
-
-            Node groupId = project.appendChild(xml.createElement("groupId"));
-            groupId.setTextContent("net.minecraft");
-
-            Node artifactId = project.appendChild(xml.createElement("artifactId"));
-            artifactId.setTextContent(artifactName);
-
-            Node versionElement = project.appendChild(xml.createElement("version"));
-            versionElement.setTextContent(version.id());
-
-            Node dependencies = project.appendChild(xml.createElement("dependencies"));
-
-            for (Library library : version.libraries()) {
-                Node dependency = dependencies.appendChild(xml.createElement("dependency"));
-                String[] split = library.name().split(":");
-
-                Node libGroup = dependency.appendChild(xml.createElement("groupId"));
-                libGroup.setTextContent(split[0]);
-
-                Node libArtifact = dependency.appendChild(xml.createElement("artifactId"));
-                libArtifact.setTextContent(split[1]);
-
-                Node libVersion = dependency.appendChild(xml.createElement("version"));
-                libVersion.setTextContent(split[2]);
-
-                Node scope = dependency.appendChild(xml.createElement("scope"));
-                scope.setTextContent("compile");
-            }
-
-            DOMSource source = new DOMSource(xml);
-            TransformerFactory factory = TransformerFactory.newInstance();
-            factory.setAttribute("indent-number", 4);
-            Transformer transformer = factory.newTransformer();
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-
             Files.createDirectories(file.getParent());
             try (OutputStream stream = Files.newOutputStream(file)) {
-                transformer.transform(source, new StreamResult(stream));
+                pom.write(stream);
             }
-        } catch (IOException | ParserConfigurationException | TransformerException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void makeMetadata(VersionManifest manifest, String artifactName, Path file) {
-        try {
-            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-            Document xml = builder.newDocument();
-            Node metadata = xml.appendChild(xml.createElement("metadata"));
-
-            Node groupId = metadata.appendChild(xml.createElement("groupId"));
-            groupId.setTextContent("net.minecraft");
-
-            Node artifactId = metadata.appendChild(xml.createElement("artifactId"));
-            artifactId.setTextContent(artifactName);
-
-            Node versioning = metadata.appendChild(xml.createElement("versioning"));
-            Node versions = versioning.appendChild(xml.createElement("versions"));
-
-            for (VersionManifest.Version version : manifest.versions()) {
-                Node element = versions.appendChild(xml.createElement("version"));
-                element.setTextContent(version.id());
-            }
-
-            DOMSource source = new DOMSource(xml);
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-
-            Files.createDirectories(file.getParent());
-            try (OutputStream stream = Files.newOutputStream(file)) {
-                transformer.transform(source, new StreamResult(stream));
-            }
-        } catch (IOException | ParserConfigurationException | TransformerException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
