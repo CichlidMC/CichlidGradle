@@ -63,4 +63,12 @@ public class FileUtils {
             throw new RuntimeException(e);
         }
     }
+
+    public static void ensureCreated(Path file) throws IOException {
+        if (!Files.exists(file)) {
+            // can't use open option, gradle breaks it
+            Files.createDirectories(file.getParent());
+            Files.createFile(file);
+        }
+    }
 }

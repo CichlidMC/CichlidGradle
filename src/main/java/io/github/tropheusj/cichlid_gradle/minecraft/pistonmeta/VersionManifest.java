@@ -9,9 +9,14 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -20,6 +25,9 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Library;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Os;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Rule;
 import io.github.tropheusj.cichlid_gradle.util.UriCodec;
 
 public record VersionManifest(LatestVersions latest, List<Version> versions) {
@@ -96,6 +104,48 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 			} catch (Exception e) {
 				throw new RuntimeException("Error expanding version " + this.id, e);
 			}
+		}
+	}
+
+	public static void main(String[] args) throws IOException {
+		Set<String> actions = new HashSet<>();
+		Set<String> oses = new HashSet<>();
+		Set<String> arches = new HashSet<>();
+		Path got = Paths.get("got.txt");
+		Properties props = new Properties();
+		if (Files.exists(got)) {
+			props.load(Files.newBufferedReader(got));
+		}
+		try {
+			VersionManifest manifest = fetch();
+			for (Version version : manifest.versions) {
+				if (props.containsKey(version.id)) {
+					continue;
+				}
+
+				try {
+					FullVersion full = version.expand();
+					for (Library lib : full.libraries()) {
+						for (Rule rule : lib.rules()) {
+							if (actions.add(rule.action())) {
+								System.out.println(rule.action());
+							}
+							if (oses.add(rule.os().flatMap(Os::name).orElse("unspecified"))) {
+								System.out.println(rule.os().flatMap(Os::name).orElse("unspecified"));
+							}
+							if (arches.add(rule.os().flatMap(Os::arch).orElse("unspecified"))) {
+								System.out.println(rule.os().flatMap(Os::arch).orElse("unspecified"));
+							}
+						}
+					}
+				} catch (Throwable t) {
+					System.out.println("failed on " + version.id);
+					throw t;
+				}
+				props.put(version.id, "true");
+			}
+		} finally {
+			props.store(Files.newBufferedWriter(got, StandardOpenOption.CREATE), "");
 		}
 	}
 }

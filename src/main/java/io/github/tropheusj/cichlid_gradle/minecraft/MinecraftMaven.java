@@ -2,8 +2,10 @@ package io.github.tropheusj.cichlid_gradle.minecraft;
 
 import com.google.common.base.Suppliers;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Library;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest.Version;
+import io.github.tropheusj.cichlid_gradle.util.DirDeleter;
 import io.github.tropheusj.cichlid_gradle.util.FileUtils;
 import io.github.tropheusj.cichlid_gradle.util.IoSupplier;
 import io.github.tropheusj.cichlid_gradle.util.XmlBuilder;
@@ -11,17 +13,7 @@ import io.github.tropheusj.cichlid_gradle.util.XmlBuilder.XmlElement;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -33,6 +25,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,7 +35,8 @@ import java.util.regex.Pattern;
  * Intercepts requests to try to download missing versions.
  */
 public class MinecraftMaven {
-    public static final String PATH = "caches/cichlid-gradle/minecraft-maven";
+    public static final int FORMAT = 1;
+    public static final String PATH = "caches/cichlid-gradle/minecraft-maven/v" + FORMAT;
     public static final Pattern MC = Pattern.compile("/net/minecraft/minecraft-(client|server|merged)/(.+)/minecraft-(client|server|merged)-(.+)\\.(pom|jar)");
 
     private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
@@ -62,7 +56,7 @@ public class MinecraftMaven {
     }
 
     /**
-     * Returns a path to the file at the given URI. The file will always exist.
+     * Returns a path to the file at the given URI. The file will always exist if non-null.
      */
     @Nullable
     public Path getFile(URI uri) {
@@ -120,12 +114,7 @@ public class MinecraftMaven {
     private <T> T getLocked(IoSupplier<T> supplier) {
         synchronized (lock) {
             try {
-                if (!Files.exists(this.lockFile)) {
-                    // can't use open option, gradle breaks it
-                    Files.createDirectories(this.root);
-                    Files.createFile(this.lockFile);
-                }
-
+                FileUtils.ensureCreated(this.lockFile);
                 try (FileChannel channel = FileChannel.open(this.lockFile, StandardOpenOption.WRITE); FileLock ignored = channel.lock()) {
                     return supplier.get();
                 }
@@ -141,6 +130,8 @@ public class MinecraftMaven {
                 new XmlElement("artifactId", artifactName),
                 new XmlElement("version", version.id()),
                 new XmlElement("dependencies", version.libraries().stream().map(library -> {
+                    if (!this.useLibrary(library))
+                        return null;
                     String[] split = library.name().split(":");
                     XmlElement element = new XmlElement("dependency", new ArrayList<>(List.of(
                             new XmlElement("groupId", split[0]),
@@ -152,7 +143,7 @@ public class MinecraftMaven {
                         element.children().add(new XmlElement("classifier", split[3]));
                     }
                     return element;
-                }).toList())
+                }).filter(Objects::nonNull).toList())
         )));
 
         try {
@@ -163,5 +154,9 @@ public class MinecraftMaven {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private boolean useLibrary(Library lib) {
+        return true;
     }
 }

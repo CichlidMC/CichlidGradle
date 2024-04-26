@@ -2,12 +2,14 @@ package io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.tropheusj.cichlid_gradle.minecraft.Side;
 import io.github.tropheusj.cichlid_gradle.util.Downloadable;
@@ -43,16 +45,33 @@ public record FullVersion(
 				Codec.STRING.optionalFieldOf("name").forGetter(Os::name),
 				Codec.STRING.optionalFieldOf("arch").forGetter(Os::arch)
 		).apply(instance, Os::new));
-
-		public static final Os CURRENT = new Os(Optional.of(System.getProperty("os.name")), Optional.of(System.getProperty("os.arch")));
 	}
 
-	public record Rule(String action, Optional<Features> features, Optional<Os> os) {
+	public record Rule(Action action, Optional<Features> features, Optional<Os> os) {
 		public static final Codec<Rule> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-				Codec.STRING.fieldOf("action").forGetter(Rule::action),
+				Action.CODEC.fieldOf("action").forGetter(Rule::action),
 				Features.CODEC.optionalFieldOf("features").forGetter(Rule::features),
 				Os.CODEC.optionalFieldOf("os").forGetter(Rule::os)
 		).apply(instance, Rule::new));
+
+		public enum Action {
+			ALLOW, DISALLOW;
+
+			public static final Codec<Action> CODEC = Codec.STRING.comapFlatMap(Action::of, Action::toString);
+
+			@Override
+			public String toString() {
+				return this.name().toLowerCase(Locale.ROOT);
+			}
+
+			public static DataResult<Action> of(String s) {
+				return switch (s) {
+					case "allow" -> DataResult.success(ALLOW);
+					case "disallow" -> DataResult.success(DISALLOW);
+					default -> DataResult.error(() -> "No action named " + s);
+				};
+			}
+		}
 	}
 
 	public record Arguments(List<Argument> game, List<Argument> jvm) {
@@ -126,6 +145,18 @@ public record FullVersion(
 				Codec.INT.fieldOf("size").forGetter(Artifact::size),
 				UriCodec.INSTANCE.fieldOf("url").forGetter(Artifact::url)
 		).apply(instance, Artifact::new));
+	}
+
+	public record Classifiers(Map<String, Artifact> map) {
+		public static final Codec<Classifiers> CODEC = Codec.unboundedMap(Codec.STRING, Artifact.CODEC).xmap(Classifiers::new, Classifiers::map);
+	}
+
+	public record Natives(String linux, String windows, String macos) {
+		public static final Codec<Natives> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+				Codec.STRING.fieldOf("linux").forGetter(Natives::linux),
+				Codec.STRING.fieldOf("windows").forGetter(Natives::windows),
+				Codec.STRING.fieldOf("macos").forGetter(Natives::macos)
+		).apply(instance, Natives::new));
 	}
 
 	public record LibraryDownload(Artifact artifact) {
