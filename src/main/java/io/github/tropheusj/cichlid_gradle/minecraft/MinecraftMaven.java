@@ -129,21 +129,11 @@ public class MinecraftMaven {
                 new XmlElement("groupId", "net.minecraft"),
                 new XmlElement("artifactId", artifactName),
                 new XmlElement("version", version.id()),
-                new XmlElement("dependencies", version.libraries().stream().map(library -> {
-                    if (!this.useLibrary(library))
-                        return null;
-                    String[] split = library.name().split(":");
-                    XmlElement element = new XmlElement("dependency", new ArrayList<>(List.of(
-                            new XmlElement("groupId", split[0]),
-                            new XmlElement("artifactId", split[1]),
-                            new XmlElement("version", split[2]),
-                            new XmlElement("scope", "compile")
-                    )));
-                    if (split.length > 3) {
-                        element.children().add(new XmlElement("classifier", split[3]));
-                    }
-                    return element;
-                }).filter(Objects::nonNull).toList())
+                new XmlElement("dependencies", version.libraries().stream()
+                        .map(this::makeLibraryPom)
+                        .filter(Objects::nonNull)
+                        .toList()
+                )
         )));
 
         try {
@@ -156,7 +146,20 @@ public class MinecraftMaven {
         }
     }
 
-    private boolean useLibrary(Library lib) {
-        return true;
+    @Nullable
+    private XmlElement makeLibraryPom(Library library) {
+        FullVersion.LibraryDownload download = library.download();
+        download.artifact()
+        String[] split = library.name().split(":");
+        XmlElement element = new XmlElement("dependency", new ArrayList<>(List.of(
+                new XmlElement("groupId", split[0]),
+                new XmlElement("artifactId", split[1]),
+                new XmlElement("version", split[2]),
+                new XmlElement("scope", "compile")
+        )));
+        if (split.length > 3) {
+            element.children().add(new XmlElement("classifier", split[3]));
+        }
+        return element;
     }
 }

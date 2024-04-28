@@ -159,17 +159,19 @@ public record FullVersion(
 		).apply(instance, Natives::new));
 	}
 
-	public record LibraryDownload(Artifact artifact) {
+	public record LibraryDownload(Optional<Artifact> artifact, Optional<Classifiers> classifiers) {
 		public static final Codec<LibraryDownload> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-				Artifact.CODEC.fieldOf("artifact").forGetter(LibraryDownload::artifact)
+				Artifact.CODEC.optionalFieldOf("artifact").forGetter(LibraryDownload::artifact),
+				Classifiers.CODEC.optionalFieldOf("classifiers").forGetter(LibraryDownload::classifiers)
 		).apply(instance, LibraryDownload::new));
 	}
 
-	public record Library(LibraryDownload download, String name, List<Rule> rules) {
+	public record Library(LibraryDownload download, String name, List<Rule> rules, Optional<Natives> natives) {
 		public static final Codec<Library> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 				LibraryDownload.CODEC.fieldOf("downloads").forGetter(Library::download),
 				Codec.STRING.fieldOf("name").forGetter(Library::name),
-				Rule.CODEC.listOf().optionalFieldOf("rules", List.of()).forGetter(Library::rules)
+				Rule.CODEC.listOf().optionalFieldOf("rules", List.of()).forGetter(Library::rules),
+				Natives.CODEC.optionalFieldOf("natives").forGetter(Library::natives)
 		).apply(instance, Library::new));
 	}
 

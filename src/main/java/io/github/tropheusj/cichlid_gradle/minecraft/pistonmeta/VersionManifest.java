@@ -127,7 +127,7 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 					FullVersion full = version.expand();
 					for (Library lib : full.libraries()) {
 						for (Rule rule : lib.rules()) {
-							if (actions.add(rule.action())) {
+							if (actions.add(rule.action().toString())) {
 								System.out.println(rule.action());
 							}
 							if (oses.add(rule.os().flatMap(Os::name).orElse("unspecified"))) {
