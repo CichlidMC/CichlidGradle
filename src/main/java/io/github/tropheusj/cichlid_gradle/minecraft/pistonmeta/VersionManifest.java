@@ -11,12 +11,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -25,10 +24,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Library;
-import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Os;
-import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Rule;
-import io.github.tropheusj.cichlid_gradle.util.UriCodec;
+import io.github.tropheusj.cichlid_gradle.util.MoreCodecs;
 
 public record VersionManifest(LatestVersions latest, List<Version> versions) {
 	public static final URI URL = URI.create("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
@@ -84,13 +80,13 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 		).apply(instance, LatestVersions::new));
 	}
 
-	public record Version(String id, VersionType type, URI url, String time, String releaseTime, String sha1, int complianceLevel) {
+	public record Version(String id, VersionType type, URI url, Date time, Date releaseTime, String sha1, int complianceLevel) {
 		public static final Codec<Version> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 				Codec.STRING.fieldOf("id").forGetter(Version::id),
 				VersionType.CODEC.fieldOf("type").forGetter(Version::type),
-				UriCodec.INSTANCE.fieldOf("url").forGetter(Version::url),
-				Codec.STRING.fieldOf("time").forGetter(Version::time),
-				Codec.STRING.fieldOf("releaseTime").forGetter(Version::releaseTime),
+				MoreCodecs.URI.fieldOf("url").forGetter(Version::url),
+				MoreCodecs.ISO_DATE.fieldOf("time").forGetter(Version::time),
+				MoreCodecs.ISO_DATE.fieldOf("releaseTime").forGetter(Version::releaseTime),
 				Codec.STRING.fieldOf("sha1").forGetter(Version::sha1),
 				Codec.INT.fieldOf("complianceLevel").forGetter(Version::complianceLevel)
 		).apply(instance, Version::new));
@@ -108,9 +104,6 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 	}
 
 	public static void main(String[] args) throws IOException {
-		Set<String> actions = new HashSet<>();
-		Set<String> oses = new HashSet<>();
-		Set<String> arches = new HashSet<>();
 		Path got = Paths.get("got.txt");
 		Properties props = new Properties();
 		if (Files.exists(got)) {
@@ -124,20 +117,7 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 				}
 
 				try {
-					FullVersion full = version.expand();
-					for (Library lib : full.libraries()) {
-						for (Rule rule : lib.rules()) {
-							if (actions.add(rule.action().toString())) {
-								System.out.println(rule.action());
-							}
-							if (oses.add(rule.os().flatMap(Os::name).orElse("unspecified"))) {
-								System.out.println(rule.os().flatMap(Os::name).orElse("unspecified"));
-							}
-							if (arches.add(rule.os().flatMap(Os::arch).orElse("unspecified"))) {
-								System.out.println(rule.os().flatMap(Os::arch).orElse("unspecified"));
-							}
-						}
-					}
+					version.expand();
 				} catch (Throwable t) {
 					System.out.println("failed on " + version.id);
 					throw t;

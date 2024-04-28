@@ -2,10 +2,14 @@ package io.github.tropheusj.cichlid_gradle.minecraft;
 
 import com.google.common.base.Suppliers;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Artifact;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Classifiers;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Features;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Library;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Natives;
+import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.FullVersion.Rule;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest;
 import io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta.VersionManifest.Version;
-import io.github.tropheusj.cichlid_gradle.util.DirDeleter;
 import io.github.tropheusj.cichlid_gradle.util.FileUtils;
 import io.github.tropheusj.cichlid_gradle.util.IoSupplier;
 import io.github.tropheusj.cichlid_gradle.util.XmlBuilder;
@@ -26,9 +30,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Manages a maven repository stored on the local filesystem containing Minecraft resources.
@@ -97,7 +103,7 @@ public class MinecraftMaven {
         FullVersion full = version.expand();
 
         this.downloadSide(full, Side.CLIENT);
-        this.downloadSide(full, Side.SERVER);
+//        this.downloadSide(full, Side.SERVER);
     }
 
     private void downloadSide(FullVersion version, Side side) {
@@ -129,11 +135,7 @@ public class MinecraftMaven {
                 new XmlElement("groupId", "net.minecraft"),
                 new XmlElement("artifactId", artifactName),
                 new XmlElement("version", version.id()),
-                new XmlElement("dependencies", version.libraries().stream()
-                        .map(this::makeLibraryPom)
-                        .filter(Objects::nonNull)
-                        .toList()
-                )
+                new XmlElement("dependencies", version.libraries().stream().flatMap(this::makeLibraryPoms).toList())
         )));
 
         try {
@@ -146,11 +148,39 @@ public class MinecraftMaven {
         }
     }
 
-    @Nullable
-    private XmlElement makeLibraryPom(Library library) {
-        FullVersion.LibraryDownload download = library.download();
-        download.artifact()
-        String[] split = library.name().split(":");
+    private Stream<XmlElement> makeLibraryPoms(Library library) {
+        // check rules first
+        List<Rule> rules = library.rules();
+        for (Rule rule : rules) {
+            if (!rule.test(Features.EMPTY)) {
+                return Stream.empty();
+            }
+        }
+
+        List<XmlElement> elements = new ArrayList<>();
+        Optional<Artifact> artifact = library.download().artifact();
+        if (artifact.isPresent()) {
+            elements.add(makeDependencyXml(library.name()));
+        }
+
+        Optional<Natives> natives = library.natives();
+        if (natives.isPresent()) {
+            String classifier = natives.get().choose();
+            if (classifier != null) {
+                String notation = library.name() + ':' + classifier;
+                elements.add(makeDependencyXml(notation));
+            }
+        }
+
+        if (elements.isEmpty()) {
+            throw new IllegalStateException("Library has nothing to download: " + library);
+        }
+
+        return elements.stream();
+    }
+
+    private static XmlElement makeDependencyXml(String notation) {
+        String[] split = notation.split(":");
         XmlElement element = new XmlElement("dependency", new ArrayList<>(List.of(
                 new XmlElement("groupId", split[0]),
                 new XmlElement("artifactId", split[1]),

@@ -1,11 +1,14 @@
 package io.github.tropheusj.cichlid_gradle.minecraft.pistonmeta;
 
 import java.net.URI;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
@@ -13,38 +16,75 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.tropheusj.cichlid_gradle.minecraft.Side;
 import io.github.tropheusj.cichlid_gradle.util.Downloadable;
-import io.github.tropheusj.cichlid_gradle.util.UriCodec;
+import io.github.tropheusj.cichlid_gradle.util.MoreCodecs;
+import io.github.tropheusj.cichlid_gradle.util.SystemInfo;
+import io.github.tropheusj.cichlid_gradle.util.SystemInfo.Architecture;
+import io.github.tropheusj.cichlid_gradle.util.SystemInfo.OperatingSystem;
+import org.jetbrains.annotations.Nullable;
 
 public record FullVersion(
-		Arguments args, AssetIndex assetIndex, String assets, int complianceLevel,
-		Downloads downloads, String id, JavaVersion javaVersion, List<Library> libraries, Logging logging,
-		String mainClass, Optional<Integer> minLauncherVersion, String releaseTime, String time, VersionType type) {
+		Optional<SplitArguments> splitArgs, Optional<StringArguments> stringArgs, AssetIndex assetIndex, String assets,
+		Optional<Integer> complianceLevel, Downloads downloads, String id, Optional<JavaVersion> javaVersion, List<Library> libraries,
+		Optional<Logging> logging, String mainClass, Optional<Integer> minLauncherVersion, Date releaseTime, Date time,
+		VersionType type) {
 	public static final Codec<FullVersion> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-			Arguments.CODEC.fieldOf("arguments").forGetter(FullVersion::args),
+			SplitArguments.CODEC.optionalFieldOf("arguments").forGetter(FullVersion::splitArgs),
+			StringArguments.CODEC.optionalFieldOf("minecraftArguments").forGetter(FullVersion::stringArgs),
 			AssetIndex.CODEC.fieldOf("assetIndex").forGetter(FullVersion::assetIndex),
 			Codec.STRING.fieldOf("assets").forGetter(FullVersion::assets),
-			Codec.INT.fieldOf("complianceLevel").forGetter(FullVersion::complianceLevel),
+			Codec.INT.optionalFieldOf("complianceLevel").forGetter(FullVersion::complianceLevel),
 			Downloads.CODEC.fieldOf("downloads").forGetter(FullVersion::downloads),
 			Codec.STRING.fieldOf("id").forGetter(FullVersion::id),
-			JavaVersion.CODEC.fieldOf("javaVersion").forGetter(FullVersion::javaVersion),
+			JavaVersion.CODEC.optionalFieldOf("javaVersion").forGetter(FullVersion::javaVersion),
 			Library.CODEC.listOf().fieldOf("libraries").forGetter(FullVersion::libraries),
-			Logging.CODEC.fieldOf("logging").forGetter(FullVersion::logging),
+			Logging.CODEC.optionalFieldOf("logging").forGetter(FullVersion::logging),
 			Codec.STRING.fieldOf("mainClass").forGetter(FullVersion::mainClass),
 			Codec.INT.optionalFieldOf("minLauncherVersion").forGetter(FullVersion::minLauncherVersion),
-			Codec.STRING.fieldOf("releaseTime").forGetter(FullVersion::releaseTime),
-			Codec.STRING.fieldOf("time").forGetter(FullVersion::time),
+			MoreCodecs.ISO_DATE.fieldOf("releaseTime").forGetter(FullVersion::releaseTime),
+			MoreCodecs.ISO_DATE.fieldOf("time").forGetter(FullVersion::time),
 			VersionType.CODEC.fieldOf("type").forGetter(FullVersion::type)
 	).apply(instance, FullVersion::new));
 
 	public record Features(Map<String, Boolean> features) {
 		public static final Codec<Features> CODEC = Codec.unboundedMap(Codec.STRING, Codec.BOOL).xmap(Features::new, Features::features);
+		public static final Features EMPTY = new Features(Map.of());
+
+		public boolean matches(Features present) {
+			for (Entry<String, Boolean> entry : this.features.entrySet()) {
+				String key = entry.getKey();
+				boolean required = entry.getValue();
+
+				if (!present.features.containsKey(key)) {
+					// key is not present, if it's required to be true then fail
+					if (required) {
+						return false;
+					}
+				} else {
+					// key is present, require that it matches
+					boolean actual = present.features.get(key);
+					if (required != actual)
+						return false;
+				}
+			}
+
+			return true;
+		}
 	}
 
-	public record Os(Optional<String> name, Optional<String> arch) {
+	public record Os(Optional<OperatingSystem> os, Optional<Architecture> arch, Optional<Pattern> version) {
 		public static final Codec<Os> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-				Codec.STRING.optionalFieldOf("name").forGetter(Os::name),
-				Codec.STRING.optionalFieldOf("arch").forGetter(Os::arch)
+				OperatingSystem.CODEC.optionalFieldOf("name").forGetter(Os::os),
+				Architecture.CODEC.optionalFieldOf("arch").forGetter(Os::arch),
+				MoreCodecs.REGEX.optionalFieldOf("version").forGetter(Os::version)
 		).apply(instance, Os::new));
+
+		public boolean matches() {
+			if (this.os.isPresent() && this.os.get() != OperatingSystem.CURRENT)
+				return false;
+			if (this.arch.isPresent() && this.arch.get() != Architecture.CURRENT)
+				return false;
+			return this.version.isEmpty() || this.version.get().matcher(SystemInfo.INSTANCE.osVersion()).matches();
+		}
 	}
 
 	public record Rule(Action action, Optional<Features> features, Optional<Os> os) {
@@ -53,6 +93,16 @@ public record FullVersion(
 				Features.CODEC.optionalFieldOf("features").forGetter(Rule::features),
 				Os.CODEC.optionalFieldOf("os").forGetter(Rule::os)
 		).apply(instance, Rule::new));
+
+		public boolean test(Features features) {
+			return this.matches(features) ? this.action == Action.ALLOW : this.action == Action.DISALLOW;
+		}
+
+		private boolean matches(Features features) {
+			if (this.features.isPresent() && !this.features.get().matches(features))
+				return false;
+			return this.os.isEmpty() || this.os.get().matches();
+		}
 
 		public enum Action {
 			ALLOW, DISALLOW;
@@ -74,11 +124,17 @@ public record FullVersion(
 		}
 	}
 
-	public record Arguments(List<Argument> game, List<Argument> jvm) {
-		public static final Codec<Arguments> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-				Argument.CODEC.listOf().fieldOf("game").forGetter(Arguments::game),
-				Argument.CODEC.listOf().fieldOf("jvm").forGetter(Arguments::jvm)
-		).apply(instance, Arguments::new));
+	// >1.12
+	public record SplitArguments(List<Argument> game, List<Argument> jvm) {
+		public static final Codec<SplitArguments> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+				Argument.CODEC.listOf().fieldOf("game").forGetter(SplitArguments::game),
+				Argument.CODEC.listOf().fieldOf("jvm").forGetter(SplitArguments::jvm)
+		).apply(instance, SplitArguments::new));
+	}
+
+	// <=1.12
+	public record StringArguments(String value) {
+		public static final Codec<StringArguments> CODEC = Codec.STRING.xmap(StringArguments::new, StringArguments::value);
 	}
 
 	public record Argument(List<Rule> rules, List<String> values) {
@@ -102,7 +158,7 @@ public record FullVersion(
 				Codec.STRING.fieldOf("sha1").forGetter(AssetIndex::sha1),
 				Codec.INT.fieldOf("size").forGetter(AssetIndex::size),
 				Codec.INT.fieldOf("totalSize").forGetter(AssetIndex::totalSize),
-				UriCodec.INSTANCE.fieldOf("url").forGetter(AssetIndex::url)
+				MoreCodecs.URI.fieldOf("url").forGetter(AssetIndex::url)
 		).apply(instance, AssetIndex::new));
 	}
 
@@ -110,22 +166,24 @@ public record FullVersion(
 		public static final Codec<Download> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 				Codec.STRING.fieldOf("sha1").forGetter(Download::sha1),
 				Codec.INT.fieldOf("size").forGetter(Download::size),
-				UriCodec.INSTANCE.fieldOf("url").forGetter(Download::url)
+				MoreCodecs.URI.fieldOf("url").forGetter(Download::url)
 		).apply(instance, Download::new));
 	}
 
-	public record Downloads(Download client, Download clientMappings, Download server, Download serverMappings) {
+	public record Downloads(Download client, Optional<Download> clientMappings, Optional<Download> server,
+							Optional<Download> serverMappings, Optional<Download> windowsServer) {
 		public static final Codec<Downloads> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 				Download.CODEC.fieldOf("client").forGetter(Downloads::client),
-				Download.CODEC.fieldOf("client_mappings").forGetter(Downloads::clientMappings),
-				Download.CODEC.fieldOf("server").forGetter(Downloads::server),
-				Download.CODEC.fieldOf("server_mappings").forGetter(Downloads::serverMappings)
+				Download.CODEC.optionalFieldOf("client_mappings").forGetter(Downloads::clientMappings),
+				Download.CODEC.optionalFieldOf("server").forGetter(Downloads::server),
+				Download.CODEC.optionalFieldOf("server_mappings").forGetter(Downloads::serverMappings),
+				Download.CODEC.optionalFieldOf("windows_server").forGetter(Downloads::windowsServer)
 		).apply(instance, Downloads::new));
 
 		public Download jar(Side side) {
 			return switch (side) {
 				case CLIENT -> this.client;
-				case SERVER -> this.server;
+				case SERVER -> this.server.orElseThrow(); // TODO: don't throw here
 				case MERGED -> throw new IllegalArgumentException();
 			};
 		}
@@ -143,7 +201,7 @@ public record FullVersion(
 				Codec.STRING.fieldOf("path").forGetter(Artifact::path),
 				Codec.STRING.fieldOf("sha1").forGetter(Artifact::sha1),
 				Codec.INT.fieldOf("size").forGetter(Artifact::size),
-				UriCodec.INSTANCE.fieldOf("url").forGetter(Artifact::url)
+				MoreCodecs.URI.fieldOf("url").forGetter(Artifact::url)
 		).apply(instance, Artifact::new));
 	}
 
@@ -151,12 +209,22 @@ public record FullVersion(
 		public static final Codec<Classifiers> CODEC = Codec.unboundedMap(Codec.STRING, Artifact.CODEC).xmap(Classifiers::new, Classifiers::map);
 	}
 
-	public record Natives(String linux, String windows, String macos) {
+	public record Natives(Optional<String> linux, Optional<String> windows, Optional<String> osx) {
 		public static final Codec<Natives> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-				Codec.STRING.fieldOf("linux").forGetter(Natives::linux),
-				Codec.STRING.fieldOf("windows").forGetter(Natives::windows),
-				Codec.STRING.fieldOf("macos").forGetter(Natives::macos)
+				Codec.STRING.optionalFieldOf("linux").forGetter(Natives::linux),
+				Codec.STRING.optionalFieldOf("windows").forGetter(Natives::windows),
+				Codec.STRING.optionalFieldOf("osx").forGetter(Natives::osx)
 		).apply(instance, Natives::new));
+
+		@Nullable
+		public String choose() {
+			// todo: ${arch}
+			return (switch (OperatingSystem.CURRENT) {
+				case WINDOWS -> this.windows;
+				case LINUX -> this.linux;
+				case OSX -> this.osx;
+			}).orElse(null);
+		}
 	}
 
 	public record LibraryDownload(Optional<Artifact> artifact, Optional<Classifiers> classifiers) {
@@ -180,7 +248,7 @@ public record FullVersion(
 				Codec.STRING.fieldOf("id").forGetter(LoggingFile::id),
 				Codec.STRING.fieldOf("sha1").forGetter(LoggingFile::sha1),
 				Codec.INT.fieldOf("size").forGetter(LoggingFile::size),
-				UriCodec.INSTANCE.fieldOf("url").forGetter(LoggingFile::url)
+				MoreCodecs.URI.fieldOf("url").forGetter(LoggingFile::url)
 		).apply(instance, LoggingFile::new));
 	}
 
