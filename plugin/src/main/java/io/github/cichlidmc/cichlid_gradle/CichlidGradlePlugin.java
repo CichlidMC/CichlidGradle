@@ -7,22 +7,11 @@ import io.github.cichlidmc.cichlid_gradle.extension.CichlidExtensionImpl;
 import io.github.cichlidmc.cichlid_gradle.minecraft.mcmaven.McMavenConnectorFactory;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.internal.artifacts.repositories.transport.RepositoryTransportFactory;
-
-import javax.inject.Inject;
-
 
 public abstract class CichlidGradlePlugin implements Plugin<Project> {
-	private final RepositoryTransportFactory repositoryTransportFactory;
-
-	@Inject
-	public CichlidGradlePlugin(RepositoryTransportFactory repositoryTransportFactory) {
-		this.repositoryTransportFactory = repositoryTransportFactory;
-	}
-
 	@Override
 	public void apply(Project project) {
-		McMavenConnectorFactory.inject(repositoryTransportFactory, project.getGradle().getGradleUserHomeDir());
+		McMavenConnectorFactory.inject(project);
 
 		CichlidExtension extension = project.getExtensions().create(
 				CichlidExtension.class, "cichlid", CichlidExtensionImpl.class

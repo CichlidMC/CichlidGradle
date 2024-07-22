@@ -5,8 +5,11 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Set;
 
+import javax.inject.Inject;
+
 import io.github.cichlidmc.cichlid_gradle.util.NoOpResourceLister;
 import io.github.cichlidmc.cichlid_gradle.util.NoOpUploader;
+import org.gradle.api.Project;
 import org.gradle.api.internal.artifacts.repositories.transport.RepositoryTransportFactory;
 import org.gradle.authentication.Authentication;
 import org.gradle.internal.resource.connector.ResourceConnectorFactory;
@@ -40,12 +43,15 @@ public class McMavenConnectorFactory implements ResourceConnectorFactory {
 		);
 	}
 
-	public static void inject(RepositoryTransportFactory factory, File gradleHome) {
+	public static void inject(Project project) {
+		Smuggler smuggler = project.getObjects().newInstance(Smuggler.class);
+		File gradleHome = project.getGradle().getGradleUserHomeDir();
+
 		try {
 			Field registeredProtocols = RepositoryTransportFactory.class.getDeclaredField("registeredProtocols");
 			registeredProtocols.setAccessible(true);
 			@SuppressWarnings("unchecked")
-			List<ResourceConnectorFactory> list = (List<ResourceConnectorFactory>) registeredProtocols.get(factory);
+			List<ResourceConnectorFactory> list = (List<ResourceConnectorFactory>) registeredProtocols.get(smuggler.factory);
 			// don't add if it already exists
 			if (list.stream().anyMatch(f -> f instanceof McMavenConnectorFactory))
 				return;
@@ -53,6 +59,17 @@ public class McMavenConnectorFactory implements ResourceConnectorFactory {
 			list.add(new McMavenConnectorFactory(gradleHome));
 		} catch (ReflectiveOperationException e) {
 			throw new RuntimeException("Error accessing gradle internals, probably need an update", e);
+		}
+	}
+
+
+	@SuppressWarnings("ClassCanBeRecord")
+	public static class Smuggler {
+		public final RepositoryTransportFactory factory;
+
+		@Inject
+		public Smuggler(RepositoryTransportFactory factory) {
+			this.factory = factory;
 		}
 	}
 }
