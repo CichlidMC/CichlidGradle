@@ -9,24 +9,26 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.test.AccessTrackingJsonObject;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.test.AccessTrackingJsonOps;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.MoreCodecs;
 
 public record VersionManifest(LatestVersions latest, List<Version> versions) {
+	public static final boolean VALIDATE = true;
 	public static final URI URL = URI.create("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
 
 	private static final HttpClient client = HttpClient.newBuilder().build();
@@ -58,7 +60,7 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 		try {
 			HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 			JsonElement json = JsonParser.parseString(response.body());
-			return CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
+			return decode(CODEC, json);
 		} catch (IOException | InterruptedException e) {
 			throw new RuntimeException(e);
 		}
@@ -96,36 +98,29 @@ public record VersionManifest(LatestVersions latest, List<Version> versions) {
 			try {
 				HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 				JsonElement json = JsonParser.parseString(response.body());
-				return FullVersion.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
+				return decode(FullVersion.CODEC, json);
 			} catch (Exception e) {
 				throw new RuntimeException("Error expanding version " + this.id, e);
 			}
 		}
 	}
 
-	public static void main(String[] args) throws IOException {
-		Path got = Paths.get("got.txt");
-		Properties props = new Properties();
-		if (Files.exists(got)) {
-			props.load(Files.newBufferedReader(got));
+	private static <T> T decode(Codec<T> codec, JsonElement json) {
+		JsonOps ops = JsonOps.INSTANCE;
+		if (VALIDATE && json instanceof JsonObject object) {
+			json = new AccessTrackingJsonObject(object);
+			ops = AccessTrackingJsonOps.INSTANCE;
 		}
-		try {
-			VersionManifest manifest = fetch();
-			for (Version version : manifest.versions) {
-				if (props.containsKey(version.id)) {
-					continue;
-				}
 
-				try {
-					version.expand();
-				} catch (Throwable t) {
-					System.out.println("failed on " + version.id);
-					throw t;
-				}
-				props.put(version.id, "true");
+		T result = codec.decode(ops, json).getOrThrow().getFirst();
+
+		if (json instanceof AccessTrackingJsonObject tracked) {
+			Set<String> unused = tracked.collectUnused();
+			if (!unused.isEmpty()) {
+				throw new IllegalStateException("Unparsed fields: " + unused);
 			}
-		} finally {
-			props.store(Files.newBufferedWriter(got, StandardOpenOption.CREATE), "");
 		}
+
+		return result;
 	}
 }

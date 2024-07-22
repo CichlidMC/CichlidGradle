@@ -24,7 +24,7 @@ import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo.OperatingSy
 public record FullVersion(
 		Optional<SplitArguments> splitArgs, Optional<StringArguments> stringArgs, AssetIndex assetIndex, String assets,
 		Optional<Integer> complianceLevel, Downloads downloads, String id, Optional<JavaVersion> javaVersion, List<Library> libraries,
-		Optional<Logging> logging, String mainClass, Optional<Integer> minLauncherVersion, Date releaseTime, Date time,
+		Optional<Logging> logging, String mainClass, Optional<Integer> minimumLauncherVersion, Date releaseTime, Date time,
 		VersionType type) {
 	public static final Codec<FullVersion> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 			SplitArguments.CODEC.optionalFieldOf("arguments").forGetter(FullVersion::splitArgs),
@@ -38,7 +38,7 @@ public record FullVersion(
 			Library.CODEC.listOf().fieldOf("libraries").forGetter(FullVersion::libraries),
 			Logging.CODEC.optionalFieldOf("logging").forGetter(FullVersion::logging),
 			Codec.STRING.fieldOf("mainClass").forGetter(FullVersion::mainClass),
-			Codec.INT.optionalFieldOf("minLauncherVersion").forGetter(FullVersion::minLauncherVersion),
+			Codec.INT.optionalFieldOf("minimumLauncherVersion").forGetter(FullVersion::minimumLauncherVersion),
 			MoreCodecs.ISO_DATE.fieldOf("releaseTime").forGetter(FullVersion::releaseTime),
 			MoreCodecs.ISO_DATE.fieldOf("time").forGetter(FullVersion::time),
 			VersionType.CODEC.fieldOf("type").forGetter(FullVersion::type)
