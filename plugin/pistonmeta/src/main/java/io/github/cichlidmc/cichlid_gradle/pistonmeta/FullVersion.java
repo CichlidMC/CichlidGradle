@@ -1,4 +1,4 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta;
+package io.github.cichlidmc.cichlid_gradle.pistonmeta;
 
 import java.net.URI;
 import java.util.Date;
@@ -14,13 +14,12 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.github.cichlidmc.cichlid_gradle.minecraft.Side;
-import io.github.cichlidmc.cichlid_gradle.util.Downloadable;
-import io.github.cichlidmc.cichlid_gradle.util.MoreCodecs;
-import io.github.cichlidmc.cichlid_gradle.util.SystemInfo;
-import io.github.cichlidmc.cichlid_gradle.util.SystemInfo.Architecture;
-import io.github.cichlidmc.cichlid_gradle.util.SystemInfo.OperatingSystem;
-import org.jetbrains.annotations.Nullable;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Downloadable;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.MoreCodecs;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Side;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo.Architecture;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo.OperatingSystem;
 
 public record FullVersion(
 		Optional<SplitArguments> splitArgs, Optional<StringArguments> stringArgs, AssetIndex assetIndex, String assets,
@@ -216,7 +215,6 @@ public record FullVersion(
 				Codec.STRING.optionalFieldOf("osx").forGetter(Natives::osx)
 		).apply(instance, Natives::new));
 
-		@Nullable
 		public String choose() {
 			// todo: ${arch}
 			return (switch (OperatingSystem.CURRENT) {

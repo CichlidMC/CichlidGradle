@@ -37,3 +37,8 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+/downloads/
+/logs/
+/resourcepacks/
+/saves/

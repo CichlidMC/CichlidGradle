@@ -1,14 +1,15 @@
 package io.github.cichlidmc.cichlid_gradle.minecraft;
 
 import com.google.common.base.Suppliers;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.FullVersion;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.FullVersion.Artifact;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.FullVersion.Features;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.FullVersion.Library;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.FullVersion.Natives;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.FullVersion.Rule;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.VersionManifest;
-import io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta.VersionManifest.Version;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Artifact;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Features;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Library;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Natives;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Rule;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Side;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest.Version;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.cichlid_gradle.util.IoSupplier;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder;

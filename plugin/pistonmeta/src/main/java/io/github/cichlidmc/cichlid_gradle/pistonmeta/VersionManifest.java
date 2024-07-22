@@ -1,4 +1,4 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft.pistonmeta;
+package io.github.cichlidmc.cichlid_gradle.pistonmeta;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,7 +24,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.github.cichlidmc.cichlid_gradle.util.MoreCodecs;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.MoreCodecs;
 
 public record VersionManifest(LatestVersions latest, List<Version> versions) {
 	public static final URI URL = URI.create("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");

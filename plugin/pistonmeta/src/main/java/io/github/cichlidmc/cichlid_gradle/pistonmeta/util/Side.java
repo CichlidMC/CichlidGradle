@@ -1,4 +1,4 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft;
+package io.github.cichlidmc.cichlid_gradle.pistonmeta.util;
 
 import java.util.Locale;
 
