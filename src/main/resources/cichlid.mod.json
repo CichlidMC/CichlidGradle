@@ -1,0 +1,9 @@
+{
+  "name": "CichlidGradleTest",
+  "id": "testmod",
+  "description": "test mod",
+  "version": "1.0.0",
+  "entrypoints": {
+    "pre_launch": "io.github.cichlidmc.cichlid_gradle_test.TestPreLaunch"
+  }
+}

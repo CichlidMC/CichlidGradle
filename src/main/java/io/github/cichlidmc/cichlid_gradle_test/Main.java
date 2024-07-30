@@ -11,6 +11,7 @@ public class Main {
 			list.add("invalid");
 			list.add("--version");
 			list.add("1.21");
+
 			net.minecraft.client.main.Main.main(list.toArray(String[]::new));
 		} catch (Throwable t) {
 			t.printStackTrace();

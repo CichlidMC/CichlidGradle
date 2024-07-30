@@ -16,7 +16,6 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Downloadable;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.MoreCodecs;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Side;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo.Architecture;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo.OperatingSystem;
@@ -178,14 +177,6 @@ public record FullVersion(
 				Download.CODEC.optionalFieldOf("server_mappings").forGetter(Downloads::serverMappings),
 				Download.CODEC.optionalFieldOf("windows_server").forGetter(Downloads::windowsServer)
 		).apply(instance, Downloads::new));
-
-		public Download jar(Side side) {
-			return switch (side) {
-				case CLIENT -> this.client;
-				case SERVER -> this.server.orElseThrow(); // TODO: don't throw here
-				case MERGED -> throw new IllegalArgumentException();
-			};
-		}
 	}
 
 	public record JavaVersion(String component, int majorVersion) {

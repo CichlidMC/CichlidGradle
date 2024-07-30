@@ -7,13 +7,17 @@ import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Features;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Library;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Natives;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Rule;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Side;
+import io.github.cichlidmc.cichlid_gradle.util.DirDeleter;
+import io.github.cichlidmc.cichlid_gradle.util.Side;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest.Version;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.cichlid_gradle.util.IoSupplier;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
+import net.neoforged.art.api.Renamer;
+import net.neoforged.art.api.Transformer;
+import net.neoforged.srgutils.IMappingFile;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
@@ -23,6 +27,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -77,7 +83,7 @@ public class MinecraftMaven {
 
             // doesn't exist, try to download
             String version = matcher.group(2);
-            Path versionDir = this.root.resolve("net/minecraft/minecraft-client").resolve(version);
+            Path versionDir = this.module("minecraft-client", version);
             if (Files.exists(versionDir)) {
                 // version has already been downloaded, URI is just invalid
                 return null;
@@ -87,33 +93,89 @@ public class MinecraftMaven {
         });
     }
 
-    private void tryDownloadVersion(String version) {
+    private void tryDownloadVersion(String version) throws IOException {
         // doesn't exist, download everything
         VersionManifest manifest = MinecraftMaven.manifest.get();
         Map<String, Version> versions = manifest.mapVersions();
         if (!versions.containsKey(version))
             return; // fake version
-        logger.quiet("Minecraft {} not cached, downloading...", version);
+        logger.quiet("Minecraft {} not cached, downloading for the first time. This could take a while.", version);
         this.downloadVersion(versions.get(version));
-        logger.quiet("Download complete.");
+        logger.quiet("Download of Minecraft {} complete.", version);
     }
 
-    private void downloadVersion(Version version) {
+    private void downloadVersion(Version version) throws IOException {
         FullVersion full = version.expand();
 
+        // all versions have a client
         this.downloadSide(full, Side.CLIENT);
-//        this.downloadSide(full, Side.SERVER);
+        // not all versions have a server
+        if (full.downloads().server().isPresent()) {
+            this.downloadSide(full, Side.SERVER);
+        }
     }
 
-    private void downloadSide(FullVersion version, Side side) {
-        // download the jar
-        Path dir = this.root.resolve("net/minecraft/minecraft-" + side).resolve(version.id());
-        String archiveName = "minecraft-" + side;
-        String filename = archiveName + '-' + version.id();
-        Path dest = dir.resolve(filename + ".jar");
-        FileUtils.download(version.downloads().jar(side), dest);
+    private void downloadSide(FullVersion version, Side side) throws IOException {
+        logger.quiet("Downloading {}", side);
+        if (side == Side.MERGED) {
+            throw new IllegalArgumentException();
+        }
+
+        String name = "minecraft-" + side;
+        Path destFile = this.artifact(name, version.id(), "jar");
+
+        FullVersion.Downloads downloads = version.downloads();
+        FullVersion.Download jarDownload = choose(side, downloads::client, downloads.server()::get);
+
+        Path mappingsFile = this.downloadMappings(version, side);
+        if (mappingsFile != null) {
+            logger.quiet("Remapping to mojmap");
+            // download to a temp file first for remapping
+            Path temp = this.artifact(name, version.id(), "jar.tmp");
+            FileUtils.download(jarDownload, temp);
+            // remap
+            List<String> log = new ArrayList<>();
+            // mojmap is distributed named -> obf, reverse it
+            IMappingFile mappings = IMappingFile.load(mappingsFile.toFile()).reverse();
+            Transformer.Factory transformer = Transformer.renamerFactory(mappings, true);
+            try (Renamer renamer = Renamer.builder().logger(log::add).add(transformer).build()) {
+                renamer.run(temp.toFile(), destFile.toFile());
+            }
+            Path logFile = temp.resolveSibling("remap_log.txt");
+            Files.writeString(logFile, String.join("\n", log));
+            Files.delete(temp);
+            // remove signatures
+            try (FileSystem fs = FileSystems.newFileSystem(destFile)) {
+                Path metaInf = fs.getPath("META-INF");
+                DirDeleter.run(metaInf);
+            }
+            logger.quiet("Remapping done.");
+        } else {
+            logger.quiet("No mojmap for this version, skipping remapping.");
+            // just download the jar
+            FileUtils.download(jarDownload, destFile);
+        }
+
+        // TODO: decompile to generate sources
+
         // generate a POM
-        this.makePom(version, archiveName, dir.resolve(filename + ".pom"));
+        logger.quiet("Generating POM");
+        Path pomFile = this.artifact(name, version.id(), "pom");
+        this.makePom(version, name, pomFile);
+        logger.quiet("Finished downloading {}.", side);
+    }
+
+    @Nullable
+    private Path downloadMappings(FullVersion version, Side side) {
+        FullVersion.Downloads downloads = version.downloads();
+        Optional<FullVersion.Download> optional = choose(side, downloads::clientMappings, downloads::serverMappings);
+        if (optional.isPresent()) {
+            Path file = this.artifact(side + "-mappings", version.id(), "txt");
+            FileUtils.download(optional.get(), file);
+            return file;
+        }
+        // No mojmap for this version.
+        return null;
     }
 
     private <T> T getLocked(IoSupplier<T> supplier) {
@@ -127,6 +189,32 @@ public class MinecraftMaven {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    /**
+     * Path to a module under net/minecraft, ex. net/minecraft/{name}/{version}
+     */
+    private Path module(String name, String version) {
+        return this.root.resolve("net")
+                .resolve("minecraft")
+                .resolve(name)
+                .resolve(version);
+    }
+
+    /**
+     * Path to an artifact, located at net/minecraft/{name}/{version}/{name}-{version}.{extension}
+     */
+    private Path artifact(String name, String version, String extension) {
+        String filename = name + '-' + version + '.' + extension;
+        return this.module(name, version).resolve(filename);
+    }
+
+    /**
+     * Path to an artifact, located at net/minecraft/{name}/{version}/{name}-{version}-{classifier}.{extension}
+     */
+    private Path artifact(String name, String version, String classifier, String extension) {
+        String filename = name + '-' + version + '-' + classifier + '.' + extension;
+        return this.module(name, version).resolve(filename);
     }
 
     private void makePom(FullVersion version, String artifactName, Path file) {
@@ -190,5 +278,13 @@ public class MinecraftMaven {
             element.children().add(new XmlElement("classifier", split[3]));
         }
         return element;
+    }
+
+    private static <T> T choose(Side side, Supplier<T> client, Supplier<T> server) {
+        return switch (side) {
+            case CLIENT -> client.get();
+            case SERVER -> server.get();
+            case MERGED -> throw new IllegalArgumentException();
+        };
     }
 }

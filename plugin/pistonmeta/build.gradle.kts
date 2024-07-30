@@ -4,7 +4,7 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven { setUrl("https://libraries.minecraft.net") }
+    maven("https://libraries.minecraft.net")
 }
 
 dependencies {
