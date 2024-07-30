@@ -155,7 +155,7 @@ public record FullVersion(
 		);
 	}
 
-	public record AssetIndex(String id, String sha1, int size, int totalSize, URI url) {
+	public record AssetIndex(String id, String sha1, int size, int totalSize, URI url) implements Downloadable {
 		public static final Codec<AssetIndex> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 				Codec.STRING.fieldOf("id").forGetter(AssetIndex::id),
 				Codec.STRING.fieldOf("sha1").forGetter(AssetIndex::sha1),

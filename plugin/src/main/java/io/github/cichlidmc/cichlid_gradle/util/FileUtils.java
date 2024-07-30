@@ -18,21 +18,36 @@ public class FileUtils {
     private static final Logger logger = Logging.getLogger(FileUtils.class);
     private static final HttpClient client = HttpClient.newBuilder().build();
 
-    public static void download(Downloadable download, Path dest) {
-        HttpRequest request = HttpRequest.newBuilder(download.url()).build();
+    public static void downloadSilently(Downloadable downloadable, Path dest) {
+        download(downloadable, dest, false);
+    }
+
+    public static void download(Downloadable downloadable, Path dest) {
+        download(downloadable, dest, true);
+    }
+
+    private static void download(Downloadable downloadable, Path dest, boolean loud) {
+        HttpRequest request = HttpRequest.newBuilder(downloadable.url()).build();
         try {
-            logger.lifecycle("Downloading {}...", dest.getFileName());
+            if (loud) {
+                logger.lifecycle("Downloading {}...", dest.getFileName());
+            }
+
             long start = System.currentTimeMillis();
             byte[] data = client.send(request, HttpResponse.BodyHandlers.ofByteArray()).body();
-            long end = System.currentTimeMillis();
-            String mb = String.format("%.3f", data.length / 1000f / 1000f);
-            logger.lifecycle("Downloaded {}mb in {}ms.", mb, end - start);
-            // validate
-            if (download.size() != data.length) {
-                throw new RuntimeException("Downloaded file did not match expected size of " + download.size());
+
+            if (loud) {
+                long end = System.currentTimeMillis();
+                String mb = String.format("%.3f", data.length / 1000f / 1000f);
+                logger.lifecycle("Downloaded {}mb in {}ms.", mb, end - start);
             }
-            if (!sha1(data).equals(download.sha1())) {
-                throw new RuntimeException("Downloaded file did not match expected hash of " + download.sha1());
+
+            // validate
+            if (downloadable.size() != data.length) {
+                throw new RuntimeException("Downloaded file did not match expected size of " + downloadable.size());
+            }
+            if (!sha1(data).equals(downloadable.sha1())) {
+                throw new RuntimeException("Downloaded file did not match expected hash of " + downloadable.sha1());
             }
             // valid
             Files.createDirectories(dest.getParent());

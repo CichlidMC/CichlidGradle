@@ -56,14 +56,16 @@ public class MinecraftMaven {
 
     private final Path root;
     private final Path lockFile;
+    private final AssetStorage assetStorage;
 
-    public MinecraftMaven(Path root) {
+    public MinecraftMaven(Path root, AssetStorage assetStorage) {
         this.root = root;
         this.lockFile = root.resolve(".lock");
+        this.assetStorage = assetStorage;
     }
 
     public static MinecraftMaven get(Path path) {
-        return new MinecraftMaven(path.resolve(PATH));
+        return new MinecraftMaven(path.resolve(PATH), AssetStorage.get(path));
     }
 
     /**
@@ -114,7 +116,7 @@ public class MinecraftMaven {
             this.downloadSide(full, Side.SERVER);
         }
 
-        this.downloadAssets(full);
+        this.assetStorage.downloadAssets(full);
     }
 
     private void downloadSide(FullVersion version, Side side) throws IOException {
@@ -178,10 +180,6 @@ public class MinecraftMaven {
         }
         // No mojmap for this version.
         return null;
-    }
-
-    private void downloadAssets(FullVersion version) {
-
     }
 
     private <T> T getLocked(IoSupplier<T> supplier) {

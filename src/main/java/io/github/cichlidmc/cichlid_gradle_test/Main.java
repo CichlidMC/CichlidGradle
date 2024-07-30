@@ -11,6 +11,10 @@ public class Main {
 			list.add("invalid");
 			list.add("--version");
 			list.add("1.21");
+			list.add("--assetsDir");
+			list.add("C:\\Users\\Jverr\\.gradle\\caches\\cichlid-gradle\\assets");
+			list.add("--assetIndex");
+			list.add("17");
 
 			net.minecraft.client.main.Main.main(list.toArray(String[]::new));
 		} catch (Throwable t) {

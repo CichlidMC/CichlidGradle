@@ -10,6 +10,7 @@ import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Downloadable;
 
 // note: 'virtual' is only specified in the 'legacy' index, and set to true.
 // likewise, 'map_to_resources' is only specified in 'pre-1.6', also true.
+// 'virtual' requires that the assets be extracted from the index. The use of 'map_to_resources' is unknown.
 public record FullAssetIndex(Optional<Boolean> virtual, Optional<Boolean> mapToResources, Map<String, Asset> objects) {
 	public static final Codec<FullAssetIndex> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 			Codec.BOOL.optionalFieldOf("virtual").forGetter(FullAssetIndex::virtual),
