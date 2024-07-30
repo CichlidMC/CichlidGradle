@@ -113,6 +113,8 @@ public class MinecraftMaven {
         if (full.downloads().server().isPresent()) {
             this.downloadSide(full, Side.SERVER);
         }
+
+        this.downloadAssets(full);
     }
 
     private void downloadSide(FullVersion version, Side side) throws IOException {
@@ -176,6 +178,10 @@ public class MinecraftMaven {
         }
         // No mojmap for this version.
         return null;
+    }
+
+    private void downloadAssets(FullVersion version) {
+
     }
 
     private <T> T getLocked(IoSupplier<T> supplier) {

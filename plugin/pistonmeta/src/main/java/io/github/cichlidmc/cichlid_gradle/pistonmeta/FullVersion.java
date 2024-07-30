@@ -1,6 +1,8 @@
 package io.github.cichlidmc.cichlid_gradle.pistonmeta;
 
 import java.net.URI;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -10,6 +12,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -19,6 +23,7 @@ import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.MoreCodecs;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo.Architecture;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.SystemInfo.OperatingSystem;
+import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Utils;
 
 public record FullVersion(
 		Optional<SplitArguments> splitArgs, Optional<StringArguments> stringArgs, AssetIndex assetIndex, String assets,
@@ -158,6 +163,17 @@ public record FullVersion(
 				Codec.INT.fieldOf("totalSize").forGetter(AssetIndex::totalSize),
 				MoreCodecs.URI.fieldOf("url").forGetter(AssetIndex::url)
 		).apply(instance, AssetIndex::new));
+
+		public FullAssetIndex expand() {
+			HttpRequest request = HttpRequest.newBuilder(this.url).GET().build();
+			try {
+				HttpResponse<String> response = Utils.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+				JsonElement json = JsonParser.parseString(response.body());
+				return Utils.decode(FullAssetIndex.CODEC, json);
+			} catch (Exception e) {
+				throw new RuntimeException("Error expanding version " + this.id, e);
+			}
+		}
 	}
 
 	public record Download(String sha1, int size, URI url) implements Downloadable {
