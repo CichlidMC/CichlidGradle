@@ -47,7 +47,7 @@ import java.util.stream.Stream;
  */
 public class MinecraftMaven {
     public static final int FORMAT = 1;
-    public static final String PATH = "caches/cichlid-gradle/minecraft-maven/v" + FORMAT;
+    public static final String PATH = "caches/cichlid-gradle/minecraft/maven/v" + FORMAT;
     public static final Pattern MC = Pattern.compile("/net/minecraft/minecraft-(client|server|merged)/(.+)/minecraft-(client|server|merged)-(.+)\\.(pom|jar)");
 
     private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
@@ -56,16 +56,18 @@ public class MinecraftMaven {
 
     private final Path root;
     private final Path lockFile;
-    private final AssetStorage assetStorage;
+    private final AssetStorage assets;
+    private final NativesStorage natives;
 
-    public MinecraftMaven(Path root, AssetStorage assetStorage) {
+    public MinecraftMaven(Path root, AssetStorage assets, NativesStorage natives) {
         this.root = root;
         this.lockFile = root.resolve(".lock");
-        this.assetStorage = assetStorage;
+        this.assets = assets;
+        this.natives = natives;
     }
 
     public static MinecraftMaven get(Path path) {
-        return new MinecraftMaven(path.resolve(PATH), AssetStorage.get(path));
+        return new MinecraftMaven(path.resolve(PATH), AssetStorage.get(path), NativesStorage.get(path));
     }
 
     /**
@@ -116,7 +118,8 @@ public class MinecraftMaven {
             this.downloadSide(full, Side.SERVER);
         }
 
-        this.assetStorage.downloadAssets(full);
+        this.assets.downloadAssets(full);
+        this.natives.extractNatives(full);
     }
 
     private void downloadSide(FullVersion version, Side side) throws IOException {

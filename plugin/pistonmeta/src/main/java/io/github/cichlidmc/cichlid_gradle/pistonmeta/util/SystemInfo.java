@@ -38,12 +38,17 @@ public record SystemInfo(OperatingSystem os, Architecture arch, String osVersion
 	}
 
 	public enum Architecture {
-		X64, X86, ARM64, ARM32;
+		X64(64), X86(32), ARM64(64), ARM32(32);
 
 		public static final Codec<Architecture> CODEC = Codec.STRING.comapFlatMap(Architecture::byName, arch -> arch.name);
 		public static final Architecture CURRENT = findCurrent();
 
 		public final String name = this.name().toLowerCase(Locale.ROOT);
+		public final int bits;
+
+		Architecture(int bits) {
+			this.bits = bits;
+		}
 
 		private static Architecture findCurrent() {
 			String arch = System.getProperty("os.arch");

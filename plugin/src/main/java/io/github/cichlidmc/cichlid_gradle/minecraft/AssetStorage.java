@@ -16,7 +16,7 @@ import org.gradle.api.logging.Logging;
  * Global cache of Minecraft assets and indices.
  */
 public class AssetStorage {
-	public static final String PATH = "caches/cichlid-gradle/assets";
+	public static final String PATH = "caches/cichlid-gradle/minecraft/assets";
 
 	private static final Logger logger = Logging.getLogger(AssetStorage.class);
 
@@ -57,7 +57,7 @@ public class AssetStorage {
 			}
 		});
 
-		if (index.virtual().isPresent() && index.virtual().get()) {
+		if (index.isVirtual()) {
 			logger.quiet("Extracting virtual assets");
 			this.extractVirtualAssets(indexId, index);
 		}

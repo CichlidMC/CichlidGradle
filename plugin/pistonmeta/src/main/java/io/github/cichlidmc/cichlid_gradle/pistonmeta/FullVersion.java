@@ -12,6 +12,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.datafixers.util.Either;
@@ -213,6 +215,12 @@ public record FullVersion(
 
 	public record Classifiers(Map<String, Artifact> map) {
 		public static final Codec<Classifiers> CODEC = Codec.unboundedMap(Codec.STRING, Artifact.CODEC).xmap(Classifiers::new, Classifiers::map);
+
+		@Nullable
+		public Artifact get(Natives natives) {
+			String key = natives.choose();
+			return key == null ? null : this.map.get(key);
+		}
 	}
 
 	public record Natives(Optional<String> linux, Optional<String> windows, Optional<String> osx) {
@@ -222,30 +230,38 @@ public record FullVersion(
 				Codec.STRING.optionalFieldOf("osx").forGetter(Natives::osx)
 		).apply(instance, Natives::new));
 
+		@Nullable
 		public String choose() {
-			// todo: ${arch}
+			String bits = String.valueOf(Architecture.CURRENT.bits);
 			return (switch (OperatingSystem.CURRENT) {
 				case WINDOWS -> this.windows;
 				case LINUX -> this.linux;
 				case OSX -> this.osx;
-			}).orElse(null);
+			}).map(value -> value.replace("${arch}", bits)).orElse(null);
 		}
 	}
 
-	public record LibraryDownload(Optional<Artifact> artifact, Optional<Classifiers> classifiers) {
-		public static final Codec<LibraryDownload> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-				Artifact.CODEC.optionalFieldOf("artifact").forGetter(LibraryDownload::artifact),
-				Classifiers.CODEC.optionalFieldOf("classifiers").forGetter(LibraryDownload::classifiers)
-		).apply(instance, LibraryDownload::new));
+	public record LibraryDownloads(Optional<Artifact> artifact, Optional<Classifiers> classifiers) {
+		public static final Codec<LibraryDownloads> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+				Artifact.CODEC.optionalFieldOf("artifact").forGetter(LibraryDownloads::artifact),
+				Classifiers.CODEC.optionalFieldOf("classifiers").forGetter(LibraryDownloads::classifiers)
+		).apply(instance, LibraryDownloads::new));
 	}
 
-	public record Library(LibraryDownload download, String name, List<Rule> rules, Optional<Natives> natives) {
+	public record Library(LibraryDownloads download, Optional<Extract> extract, String name, Optional<Natives> natives, List<Rule> rules) {
 		public static final Codec<Library> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-				LibraryDownload.CODEC.fieldOf("downloads").forGetter(Library::download),
+				LibraryDownloads.CODEC.fieldOf("downloads").forGetter(Library::download),
+				Extract.CODEC.optionalFieldOf("extract").forGetter(Library::extract),
 				Codec.STRING.fieldOf("name").forGetter(Library::name),
-				Rule.CODEC.listOf().optionalFieldOf("rules", List.of()).forGetter(Library::rules),
-				Natives.CODEC.optionalFieldOf("natives").forGetter(Library::natives)
+				Natives.CODEC.optionalFieldOf("natives").forGetter(Library::natives),
+				Rule.CODEC.listOf().optionalFieldOf("rules", List.of()).forGetter(Library::rules)
 		).apply(instance, Library::new));
+	}
+
+	public record Extract(List<String> exclude) {
+		public static final Codec<Extract> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+				Codec.STRING.listOf().fieldOf("exclude").forGetter(Extract::exclude)
+		).apply(instance, Extract::new));
 	}
 
 	public record LoggingFile(String id, String sha1, int size, URI url) {
