@@ -13,9 +13,24 @@ repositories {
 }
 
 dependencies {
-    implementation("net.minecraft:minecraft-client:1.21")
     // compile against Cichlid API
     compileOnly("io.github.cichlidmc:CichlidApi:0.1.0")
     // run with full Cichlid
     runtimeOnly("io.github.cichlidmc:Cichlid:0.1.0")
+}
+
+cichlid {
+    minecraft {
+        version = "1.21"
+        distribution = "client"
+    }
+    runs {
+        create("test") {
+            copyFrom("server")
+        }
+
+        configureEach {
+            jvmArgs.add("-Dmixin.debug.export=true")
+        }
+    }
 }

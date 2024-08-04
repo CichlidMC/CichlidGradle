@@ -1,7 +1,7 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft.mcmaven;
+package io.github.cichlidmc.cichlid_gradle.mcmaven;
 
-import io.github.cichlidmc.cichlid_gradle.minecraft.MinecraftMaven;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
+import org.gradle.api.invocation.Gradle;
 import org.gradle.api.resources.ResourceException;
 import org.gradle.internal.hash.HashCode;
 import org.gradle.internal.resource.ExternalResource;
@@ -23,9 +23,8 @@ import java.util.Date;
 public class McMavenResourceAccessor implements ExternalResourceAccessor {
     private final MinecraftMaven mcMaven;
 
-    public McMavenResourceAccessor(File gradleHome) {
-        Path path = gradleHome.toPath();
-        this.mcMaven = MinecraftMaven.get(path);
+    public McMavenResourceAccessor(Gradle gradle) {
+        this.mcMaven = MinecraftMaven.get(gradle);
     }
 
     @Nullable

@@ -1,6 +1,7 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft;
+package io.github.cichlidmc.cichlid_gradle.mcmaven;
 
 import com.google.common.base.Suppliers;
+import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Artifact;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Features;
@@ -18,6 +19,7 @@ import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
 import net.neoforged.art.api.Renamer;
 import net.neoforged.art.api.Transformer;
 import net.neoforged.srgutils.IMappingFile;
+import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
@@ -56,18 +58,17 @@ public class MinecraftMaven {
 
     private final Path root;
     private final Path lockFile;
-    private final AssetStorage assets;
-    private final NativesStorage natives;
+    private final CichlidCache cache;
 
-    public MinecraftMaven(Path root, AssetStorage assets, NativesStorage natives) {
+    public MinecraftMaven(Path root, CichlidCache cache) {
         this.root = root;
         this.lockFile = root.resolve(".lock");
-        this.assets = assets;
-        this.natives = natives;
+        this.cache = cache;
     }
 
-    public static MinecraftMaven get(Path path) {
-        return new MinecraftMaven(path.resolve(PATH), AssetStorage.get(path), NativesStorage.get(path));
+    public static MinecraftMaven get(Gradle gradle) {
+        Path gradleHome = gradle.getGradleUserHomeDir().toPath();
+        return new MinecraftMaven(gradleHome.resolve(PATH), CichlidCache.get(gradle));
     }
 
     /**
@@ -118,8 +119,9 @@ public class MinecraftMaven {
             this.downloadSide(full, Side.SERVER);
         }
 
-        this.assets.downloadAssets(full);
-        this.natives.extractNatives(full);
+        this.cache.assets.downloadAssets(full);
+        this.cache.natives.extractNatives(full);
+        this.cache.runs.generateRuns(full);
     }
 
     private void downloadSide(FullVersion version, Side side) throws IOException {
@@ -244,12 +246,8 @@ public class MinecraftMaven {
 
     private Stream<XmlElement> makeLibraryPoms(Library library) {
         // check rules first
-        List<Rule> rules = library.rules();
-        for (Rule rule : rules) {
-            if (!rule.test(Features.EMPTY)) {
-                return Stream.empty();
-            }
-        }
+        if (!Rule.test(library.rules(), Features.EMPTY))
+            return Stream.empty();
 
         List<XmlElement> elements = new ArrayList<>();
         Optional<Artifact> artifact = library.download().artifact();

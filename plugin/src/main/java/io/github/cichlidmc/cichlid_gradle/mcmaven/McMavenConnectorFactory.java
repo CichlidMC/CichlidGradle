@@ -1,6 +1,5 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft.mcmaven;
+package io.github.cichlidmc.cichlid_gradle.mcmaven;
 
-import java.io.File;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Set;
@@ -11,6 +10,7 @@ import io.github.cichlidmc.cichlid_gradle.util.NoOpResourceLister;
 import io.github.cichlidmc.cichlid_gradle.util.NoOpUploader;
 import org.gradle.api.Project;
 import org.gradle.api.internal.artifacts.repositories.transport.RepositoryTransportFactory;
+import org.gradle.api.invocation.Gradle;
 import org.gradle.authentication.Authentication;
 import org.gradle.internal.resource.connector.ResourceConnectorFactory;
 import org.gradle.internal.resource.connector.ResourceConnectorSpecification;
@@ -18,10 +18,10 @@ import org.gradle.internal.resource.transfer.DefaultExternalResourceConnector;
 import org.gradle.internal.resource.transfer.ExternalResourceConnector;
 
 public class McMavenConnectorFactory implements ResourceConnectorFactory {
-	private final File gradleHome;
+	private final Gradle gradle;
 
-    public McMavenConnectorFactory(File gradleHome) {
-        this.gradleHome = gradleHome;
+    public McMavenConnectorFactory(Gradle gradle) {
+        this.gradle = gradle;
     }
 
     @Override
@@ -37,7 +37,7 @@ public class McMavenConnectorFactory implements ResourceConnectorFactory {
 	@Override
 	public ExternalResourceConnector createResourceConnector(ResourceConnectorSpecification connectionDetails) {
 		return new DefaultExternalResourceConnector(
-				new McMavenResourceAccessor(this.gradleHome),
+				new McMavenResourceAccessor(this.gradle),
 				NoOpResourceLister.INSTANCE,
 				NoOpUploader.INSTANCE
 		);
@@ -45,7 +45,6 @@ public class McMavenConnectorFactory implements ResourceConnectorFactory {
 
 	public static void inject(Project project) {
 		Smuggler smuggler = project.getObjects().newInstance(Smuggler.class);
-		File gradleHome = project.getGradle().getGradleUserHomeDir();
 
 		try {
 			Field registeredProtocols = RepositoryTransportFactory.class.getDeclaredField("registeredProtocols");
@@ -56,7 +55,7 @@ public class McMavenConnectorFactory implements ResourceConnectorFactory {
 			if (list.stream().anyMatch(f -> f instanceof McMavenConnectorFactory))
 				return;
 
-			list.add(new McMavenConnectorFactory(gradleHome));
+			list.add(new McMavenConnectorFactory(project.getGradle()));
 		} catch (ReflectiveOperationException e) {
 			throw new RuntimeException("Error accessing gradle internals, probably need an update", e);
 		}

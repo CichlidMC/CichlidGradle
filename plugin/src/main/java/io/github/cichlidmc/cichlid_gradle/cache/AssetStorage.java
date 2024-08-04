@@ -1,4 +1,4 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft;
+package io.github.cichlidmc.cichlid_gradle.cache;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,7 +8,6 @@ import java.util.Map;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullAssetIndex;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
-import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
@@ -16,26 +15,21 @@ import org.gradle.api.logging.Logging;
  * Global cache of Minecraft assets and indices.
  */
 public class AssetStorage {
-	public static final String PATH = "caches/cichlid-gradle/minecraft/assets";
+	public static final String PATH = "minecraft/assets";
 
 	private static final Logger logger = Logging.getLogger(AssetStorage.class);
 
 	private final Path root;
 
-	public AssetStorage(Path root) {
+	private AssetStorage(Path root) {
 		this.root = root;
 	}
 
-	public static AssetStorage get(Path path) {
+	static AssetStorage get(Path path) {
 		return new AssetStorage(path.resolve(PATH));
 	}
 
-	public static AssetStorage get(Gradle gradle) {
-		return get(gradle.getGradleUserHomeDir().toPath());
-	}
-
-	// package private, called by MinecraftMaven
-	void downloadAssets(FullVersion version) throws IOException {
+	public void downloadAssets(FullVersion version) throws IOException {
 		String indexId = version.assetIndex().id();
 		Path indexFile = this.index(indexId);
 		// many versions share the same indices, check if it's been downloaded

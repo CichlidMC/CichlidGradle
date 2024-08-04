@@ -1,4 +1,4 @@
-package io.github.cichlidmc.cichlid_gradle.minecraft;
+package io.github.cichlidmc.cichlid_gradle.cache;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -10,32 +10,26 @@ import java.util.stream.Stream;
 
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
-import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
 public class NativesStorage {
-	public static final String PATH = "caches/cichlid-gradle/minecraft/natives";
+	public static final String PATH = "minecraft/natives";
 	public static final String TEMP_JAR = "temp-jar-for-extracting.jar";
 
 	private static final Logger logger = Logging.getLogger(AssetStorage.class);
 
 	private final Path root;
 
-	public NativesStorage(Path root) {
+	private NativesStorage(Path root) {
 		this.root = root;
 	}
 
-	public static NativesStorage get(Path path) {
+	static NativesStorage get(Path path) {
 		return new NativesStorage(path.resolve(PATH));
 	}
 
-	public static NativesStorage get(Gradle gradle) {
-		return get(gradle.getGradleUserHomeDir().toPath());
-	}
-
-	// package private, called by MinecraftMaven
-	void extractNatives(FullVersion version) throws IOException {
+	public void extractNatives(FullVersion version) throws IOException {
 		Path dir = this.root.resolve(version.id());
 
 		for (FullVersion.Library library : version.libraries()) {

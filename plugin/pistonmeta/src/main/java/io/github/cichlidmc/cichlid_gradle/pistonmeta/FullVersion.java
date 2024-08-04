@@ -109,6 +109,15 @@ public record FullVersion(
 			return this.os.isEmpty() || this.os.get().matches();
 		}
 
+		public static boolean test(List<Rule> rules, Features features) {
+			for (Rule rule : rules) {
+				if (!rule.test(features)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
 		public enum Action {
 			ALLOW, DISALLOW;
 
