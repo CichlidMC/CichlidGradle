@@ -22,15 +22,16 @@ dependencies {
 cichlid {
     minecraft {
         version = "1.21"
-        distribution = "client"
+        distribution = "server"
     }
     runs {
         create("test") {
-            copyFrom("server")
+//            parent = "client"
+//            jvmArgs.get().add("")
         }
 
         configureEach {
-            jvmArgs.add("-Dmixin.debug.export=true")
+//            jvmArgs.add("-Dmixin.debug.export=true")
         }
     }
 }

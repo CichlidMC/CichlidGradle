@@ -15,21 +15,15 @@ import org.gradle.api.logging.Logging;
  * Global cache of Minecraft assets and indices.
  */
 public class AssetStorage {
-	public static final String PATH = "minecraft/assets";
-
 	private static final Logger logger = Logging.getLogger(AssetStorage.class);
 
 	private final Path root;
 
-	private AssetStorage(Path root) {
+	AssetStorage(Path root) {
 		this.root = root;
 	}
 
-	static AssetStorage get(Path path) {
-		return new AssetStorage(path.resolve(PATH));
-	}
-
-	public void downloadAssets(FullVersion version) throws IOException {
+	void downloadAssets(FullVersion version) throws IOException {
 		String indexId = version.assetIndex().id();
 		Path indexFile = this.index(indexId);
 		// many versions share the same indices, check if it's been downloaded

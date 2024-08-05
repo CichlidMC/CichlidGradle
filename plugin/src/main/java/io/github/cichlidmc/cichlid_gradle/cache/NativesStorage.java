@@ -14,22 +14,17 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
 public class NativesStorage {
-	public static final String PATH = "minecraft/natives";
 	public static final String TEMP_JAR = "temp-jar-for-extracting.jar";
 
 	private static final Logger logger = Logging.getLogger(AssetStorage.class);
 
 	private final Path root;
 
-	private NativesStorage(Path root) {
+	NativesStorage(Path root) {
 		this.root = root;
 	}
 
-	static NativesStorage get(Path path) {
-		return new NativesStorage(path.resolve(PATH));
-	}
-
-	public void extractNatives(FullVersion version) throws IOException {
+	void extractNatives(FullVersion version) throws IOException {
 		Path dir = this.root.resolve(version.id());
 
 		for (FullVersion.Library library : version.libraries()) {

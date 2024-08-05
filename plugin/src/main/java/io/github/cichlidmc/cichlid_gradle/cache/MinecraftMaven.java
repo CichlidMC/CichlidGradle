@@ -1,7 +1,6 @@
-package io.github.cichlidmc.cichlid_gradle.mcmaven;
+package io.github.cichlidmc.cichlid_gradle.cache;
 
 import com.google.common.base.Suppliers;
-import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Artifact;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Features;
@@ -13,20 +12,18 @@ import io.github.cichlidmc.cichlid_gradle.util.Side;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest.Version;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
-import io.github.cichlidmc.cichlid_gradle.util.IoSupplier;
+import io.github.cichlidmc.cichlid_gradle.util.IoRunnable;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
 import net.neoforged.art.api.Renamer;
 import net.neoforged.art.api.Transformer;
 import net.neoforged.srgutils.IMappingFile;
-import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.FileSystem;
@@ -39,62 +36,37 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
  * Manages a maven repository stored on the local filesystem containing Minecraft resources.
- * Intercepts requests to try to download missing versions.
  */
 public class MinecraftMaven {
     public static final int FORMAT = 1;
-    public static final String PATH = "caches/cichlid-gradle/minecraft/maven/v" + FORMAT;
-    public static final Pattern MC = Pattern.compile("/net/minecraft/minecraft-(client|server|merged)/(.+)/minecraft-(client|server|merged)-(.+)\\.(pom|jar)");
+    public static final String PATH = "maven/v" + FORMAT;
 
     private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
     private static final Supplier<VersionManifest> manifest = Suppliers.memoize(VersionManifest::fetch);
     private static final Object lock = new Object();
 
-    private final Path root;
+    public final Path root;
+
     private final Path lockFile;
     private final CichlidCache cache;
 
-    public MinecraftMaven(Path root, CichlidCache cache) {
+    MinecraftMaven(Path root, CichlidCache cache) {
         this.root = root;
         this.lockFile = root.resolve(".lock");
         this.cache = cache;
     }
 
-    public static MinecraftMaven get(Gradle gradle) {
-        Path gradleHome = gradle.getGradleUserHomeDir().toPath();
-        return new MinecraftMaven(gradleHome.resolve(PATH), CichlidCache.get(gradle));
-    }
-
-    /**
-     * Returns a path to the file at the given URI. The file will always exist if non-null.
-     */
-    @Nullable
-    public Path getFile(URI uri) {
-        String path = uri.getPath();
-        Matcher matcher = MC.matcher(path);
-        if (!matcher.matches())
-            return null;
-
-        return this.getLocked(() -> {
-            Path file = this.root.resolve(path.substring(1)); // cut off first slash
-            if (Files.exists(file))
-                return file;
-
-            // doesn't exist, try to download
-            String version = matcher.group(2);
+    public void ensureVersionDownloaded(String version) {
+        this.doLocked(() -> {
+            // all versions have a client, check that
             Path versionDir = this.module("minecraft-client", version);
-            if (Files.exists(versionDir)) {
-                // version has already been downloaded, URI is just invalid
-                return null;
+            if (!Files.exists(versionDir)) {
+                this.tryDownloadVersion(version);
             }
-            this.tryDownloadVersion(version);
-            return Files.exists(file) ? file : null;
         });
     }
 
@@ -121,7 +93,7 @@ public class MinecraftMaven {
 
         this.cache.assets.downloadAssets(full);
         this.cache.natives.extractNatives(full);
-        this.cache.runs.generateRuns(full);
+        this.cache.runs.generateRuns(full, this);
     }
 
     private void downloadSide(FullVersion version, Side side) throws IOException {
@@ -152,7 +124,7 @@ public class MinecraftMaven {
             }
             Path logFile = temp.resolveSibling("remap_log.txt");
             Files.writeString(logFile, String.join("\n", log));
-            Files.delete(temp);
+//            Files.delete(temp);
             // remove signatures
             try (FileSystem fs = FileSystems.newFileSystem(destFile)) {
                 Path metaInf = fs.getPath("META-INF");
@@ -187,12 +159,12 @@ public class MinecraftMaven {
         return null;
     }
 
-    private <T> T getLocked(IoSupplier<T> supplier) {
+    private void doLocked(IoRunnable runnable) {
         synchronized (lock) {
             try {
                 FileUtils.ensureCreated(this.lockFile);
                 try (FileChannel channel = FileChannel.open(this.lockFile, StandardOpenOption.WRITE); FileLock ignored = channel.lock()) {
-                    return supplier.get();
+                    runnable.run();
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -203,7 +175,7 @@ public class MinecraftMaven {
     /**
      * Path to a module under net/minecraft, ex. net/minecraft/{name}/{version}
      */
-    private Path module(String name, String version) {
+    public Path module(String name, String version) {
         return this.root.resolve("net")
                 .resolve("minecraft")
                 .resolve(name)
@@ -213,7 +185,7 @@ public class MinecraftMaven {
     /**
      * Path to an artifact, located at net/minecraft/{name}/{version}/{name}-{version}.{extension}
      */
-    private Path artifact(String name, String version, String extension) {
+    public Path artifact(String name, String version, String extension) {
         String filename = name + '-' + version + '.' + extension;
         return this.module(name, version).resolve(filename);
     }
@@ -221,7 +193,7 @@ public class MinecraftMaven {
     /**
      * Path to an artifact, located at net/minecraft/{name}/{version}/{name}-{version}-{classifier}.{extension}
      */
-    private Path artifact(String name, String version, String classifier, String extension) {
+    public Path artifact(String name, String version, String classifier, String extension) {
         String filename = name + '-' + version + '-' + classifier + '.' + extension;
         return this.module(name, version).resolve(filename);
     }

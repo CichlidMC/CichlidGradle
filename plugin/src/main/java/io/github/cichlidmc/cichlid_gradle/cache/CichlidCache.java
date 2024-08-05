@@ -1,24 +1,38 @@
 package io.github.cichlidmc.cichlid_gradle.cache;
 
 import java.nio.file.Path;
+import java.util.Objects;
 
-import org.gradle.api.invocation.Gradle;
+import org.gradle.api.Project;
 
 public class CichlidCache {
-	public static final String PATH = "caches/cichlid-gradle";
+	public static final String PROJECT_CACHE_PROPERTY = "cichlid.use_project_cache";
+	public static final String PATH = "cichlid-gradle";
 
 	public final AssetStorage assets;
 	public final NativesStorage natives;
 	public final RunsStorage runs;
+	public final MinecraftMaven maven;
 
 	private CichlidCache(Path root) {
-		this.assets = AssetStorage.get(root);
-		this.natives = NativesStorage.get(root);
-		this.runs = RunsStorage.get(root);
+		Path mc = root.resolve("minecraft");
+		this.assets = new AssetStorage(mc.resolve("assets"));
+		this.natives = new NativesStorage(mc.resolve("natives"));
+		this.runs = new RunsStorage(mc.resolve("runs"));
+		this.maven = new MinecraftMaven(mc.resolve(MinecraftMaven.PATH), this);
 	}
 
-	public static CichlidCache get(Gradle gradle) {
-		Path gradleDir = gradle.getGradleUserHomeDir().toPath();
-		return new CichlidCache(gradleDir.resolve(PATH));
+	public static CichlidCache get(Project project) {
+		Path cache = getGradleCache(project);
+		Path dir = cache.resolve(PATH);
+		return new CichlidCache(dir);
+	}
+
+	private static Path getGradleCache(Project project) {
+		if (Objects.equals(project.findProperty(PROJECT_CACHE_PROPERTY), "true")) {
+			return project.file(".gradle").toPath();
+		} else {
+			return project.getGradle().getGradleUserHomeDir().toPath().resolve("caches");
+		}
 	}
 }

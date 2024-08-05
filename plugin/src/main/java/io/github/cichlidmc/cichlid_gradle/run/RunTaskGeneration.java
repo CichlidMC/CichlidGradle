@@ -2,7 +2,10 @@ package io.github.cichlidmc.cichlid_gradle.run;
 
 import java.util.concurrent.Callable;
 
+import io.github.cichlidmc.cichlid_gradle.cache.RunsStorage;
 import io.github.cichlidmc.cichlid_gradle.extension.CichlidExtension;
+import io.github.cichlidmc.cichlid_gradle.util.HierarchicalListImpl;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.plugins.internal.JavaPluginHelper;
@@ -10,12 +13,22 @@ import org.gradle.api.plugins.jvm.internal.JvmFeatureInternal;
 import org.gradle.api.tasks.JavaExec;
 
 public class RunTaskGeneration {
-	public static void run(Project project) {
+	public static void run(String mcVer, RunsStorage runsStorage, Project project) {
 		CichlidExtension extension = project.getExtensions().getByType(CichlidExtension.class);
-		extension.getRuns().all(config -> generateTask(config, project));
+		NamedDomainObjectContainer<RunConfiguration> runs = extension.getRuns();
+		addDefaultRuns(mcVer, runsStorage, runs);
+		runs.all(config -> generateTask(config, runs, project));
 	}
 
-	private static void generateTask(RunConfiguration config, Project project) {
+	private static void addDefaultRuns(String mcVer, RunsStorage runsStorage, NamedDomainObjectContainer<RunConfiguration> runs) {
+		runsStorage.getRuns(mcVer).forEach(run -> runs.register(run.name(), config -> {
+			config.getMainClass().set(run.mainClass());
+			config.getProgramArgs().get().addAll(run.programArgs());
+			config.getJvmArgs().get().addAll(run.jvmArgs());
+		}));
+	}
+
+	private static void generateTask(RunConfiguration config, NamedDomainObjectContainer<RunConfiguration> runs, Project project) {
 		String taskName = "run" + capitalizeFirstCharacter(config.getName());
 		project.getTasks().create(taskName, JavaExec.class, task -> {
 			task.setGroup("cichlid");
@@ -26,9 +39,15 @@ public class RunTaskGeneration {
 			FileCollection runtimeClasspath = project.files().from(new RuntimeClasspathProvider(task, mainFeature));
 			task.setClasspath(runtimeClasspath);
 
+			if (config.getParent().isPresent()) {
+				RunConfiguration parent = runs.getByName(config.getParent().get());
+				HierarchicalListImpl.setParent(config.getProgramArgs(), parent.getProgramArgs());
+				HierarchicalListImpl.setParent(config.getJvmArgs(), parent.getJvmArgs());
+			}
+
 			task.getMainClass().set(config.getMainClass());
-			task.setArgs(config.getProgramArgs().get());
-			task.getJvmArguments().set(config.getJvmArgs());
+			task.setArgs(HierarchicalListImpl.resolve(config.getProgramArgs()));
+			task.getJvmArguments().set(HierarchicalListImpl.resolve(config.getJvmArgs()));
 		});
 	}
 
