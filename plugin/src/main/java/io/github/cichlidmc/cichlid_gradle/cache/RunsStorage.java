@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
@@ -20,6 +22,7 @@ import org.gradle.api.logging.Logging;
 
 public class RunsStorage {
 	private static final Logger logger = Logging.getLogger(RunsStorage.class);
+	private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
 	private final Path root;
 
@@ -70,14 +73,19 @@ public class RunsStorage {
 	}
 
 	private void generateServerRun(FullVersion version, MinecraftMaven maven) throws IOException {
-		// read server jar for main class
+		// read main class from server jar manifest
 		Path jar = maven.artifact("minecraft-server", version.id(), "jar");
 		if (!Files.exists(jar)) {
 			throw new IllegalStateException("Minecraft server jar is missing");
 		}
 		try (JarFile jarFile = new JarFile(jar.toFile())) {
-//			jarFile.getManifest().getAttributes()
-			// TODO: server jar currently broken, needs to be extracted from the bundler
+			String mainClass = jarFile.getManifest().getMainAttributes().getValue("Main-Class");
+			if (mainClass == null) {
+				throw new IllegalStateException("Main-Class attribute is missing");
+			}
+
+			Run run = new Run("server", mainClass, List.of("nogui"), List.of("-Xmx1G"));
+			this.writeRun(version, run);
 		}
 	}
 
@@ -92,6 +100,15 @@ public class RunsStorage {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	private void writeRun(FullVersion version, Run run) throws IOException {
+		JsonElement json = Run.CODEC.encodeStart(JsonOps.INSTANCE, run).getOrThrow();
+		String string = gson.toJson(json);
+
+		Path file = this.dir(version.id()).resolve(run.name + ".json");
+		Files.createDirectories(file.getParent());
+		Files.writeString(file, string);
 	}
 
 	public record Run(String name, String mainClass, List<String> programArgs, List<String> jvmArgs) {

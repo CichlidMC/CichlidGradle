@@ -2,6 +2,8 @@ package io.github.cichlidmc.cichlid_gradle.util;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +42,13 @@ public record XmlBuilder(List<XmlElement> elements) {
 			transformer.transform(source, new StreamResult(stream));
 		} catch (ParserConfigurationException | TransformerException e) {
 			throw new RuntimeException(e);
+		}
+	}
+
+	public void write(Path file) throws IOException {
+		Files.createDirectories(file.getParent());
+		try (OutputStream stream = Files.newOutputStream(file)) {
+			this.write(stream);
 		}
 	}
 

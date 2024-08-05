@@ -43,6 +43,9 @@ public class RunTaskGeneration {
 				RunConfiguration parent = runs.getByName(config.getParent().get());
 				HierarchicalListImpl.setParent(config.getProgramArgs(), parent.getProgramArgs());
 				HierarchicalListImpl.setParent(config.getJvmArgs(), parent.getJvmArgs());
+				if (!config.getMainClass().isPresent()) {
+					config.getMainClass().set(parent.getMainClass());
+				}
 			}
 
 			task.getMainClass().set(config.getMainClass());

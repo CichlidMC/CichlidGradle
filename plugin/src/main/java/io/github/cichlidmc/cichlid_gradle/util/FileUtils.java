@@ -8,11 +8,18 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
+import java.util.List;
+import java.util.jar.JarFile;
+import java.util.stream.Stream;
+
+import javax.annotation.Nullable;
 
 public class FileUtils {
     private static final Logger logger = Logging.getLogger(FileUtils.class);
@@ -85,6 +92,39 @@ public class FileUtils {
             // can't use open option, gradle breaks it
             Files.createDirectories(file.getParent());
             Files.createFile(file);
+        }
+    }
+
+    @Nullable
+    public static Path getSingleFileInDirectory(Path dir) throws IOException {
+        try (Stream<Path> stream = Files.list(dir)) {
+            List<Path> list = stream.toList();
+            if (list.size() != 1) {
+                logger.warn("Expected directory {} to contain 1 path, but it contained {}", dir, list.size());
+                list.forEach(path -> logger.warn(path.toString()));
+                return null;
+            }
+
+            return list.getFirst();
+        }
+    }
+
+    public static void removeJarSignatures(Path path) throws IOException {
+        // nuke META-INF, but preserve Main-Class for reading later
+        String mainClass;
+        try (JarFile jar = new JarFile(path.toFile())) {
+            mainClass = jar.getManifest().getMainAttributes().getValue("Main-Class");
+        }
+
+        if (mainClass == null)
+            return;
+
+        try (FileSystem fs = FileSystems.newFileSystem(path)) {
+            Path metaInf = fs.getPath("META-INF");
+            DirDeleter.run(metaInf);
+            Files.createDirectories(metaInf);
+            Path manifest = metaInf.resolve("MANIFEST.MF");
+            Files.writeString(manifest, "Manifest-Version: 1.0\nMain-Class: " + mainClass + '\n'); // trailing break is critical
         }
     }
 }

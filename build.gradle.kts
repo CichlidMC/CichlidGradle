@@ -25,13 +25,14 @@ dependencies {
 
 cichlid {
     runs {
-        create("test") {
-//            parent = "client"
-//            jvmArgs.get().add("")
+        create("serverButCooler") {
+            parent = "server"
+            programArgs.get().remove("nogui")
+            jvmArg("-Dmixin.debug.export=true")
         }
 
         configureEach {
-//            jvmArgs.add("-Dmixin.debug.export=true")
+            jvmArg("-Dmixin.debug.export=true")
         }
     }
 }

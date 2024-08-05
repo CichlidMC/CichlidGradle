@@ -7,8 +7,7 @@ import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Features;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Library;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Natives;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Rule;
-import io.github.cichlidmc.cichlid_gradle.util.DirDeleter;
-import io.github.cichlidmc.cichlid_gradle.util.Side;
+import io.github.cichlidmc.cichlid_gradle.util.Distribution;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest;
 import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest.Version;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
@@ -23,7 +22,6 @@ import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.FileSystem;
@@ -36,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
 /**
@@ -85,10 +84,12 @@ public class MinecraftMaven {
         FullVersion full = version.expand();
 
         // all versions have a client
-        this.downloadSide(full, Side.CLIENT);
+        this.downloadDist(full, Distribution.CLIENT);
         // not all versions have a server
         if (full.downloads().server().isPresent()) {
-            this.downloadSide(full, Side.SERVER);
+            this.downloadDist(full, Distribution.SERVER);
+            this.generateMergedJar(full);
+            // bundler is handled in downloadDist
         }
 
         this.cache.assets.downloadAssets(full);
@@ -96,24 +97,29 @@ public class MinecraftMaven {
         this.cache.runs.generateRuns(full, this);
     }
 
-    private void downloadSide(FullVersion version, Side side) throws IOException {
-        logger.quiet("Downloading {}", side);
-        if (side == Side.MERGED) {
+    private void downloadDist(FullVersion version, Distribution dist) throws IOException {
+        logger.quiet("Downloading {}", dist);
+        if (dist.isSpecial()) {
             throw new IllegalArgumentException();
         }
 
-        String name = "minecraft-" + side;
+        String name = "minecraft-" + dist;
         Path destFile = this.artifact(name, version.id(), "jar");
 
         FullVersion.Downloads downloads = version.downloads();
-        FullVersion.Download jarDownload = choose(side, downloads::client, downloads.server()::get);
+        FullVersion.Download jarDownload = choose(dist, downloads::client, downloads.server()::get);
 
-        Path mappingsFile = this.downloadMappings(version, side);
+        Path mappingsFile = this.downloadMappings(version, dist);
         if (mappingsFile != null) {
             logger.quiet("Remapping to mojmap");
             // download to a temp file first for remapping
             Path temp = this.artifact(name, version.id(), "jar.tmp");
             FileUtils.download(jarDownload, temp);
+
+            if (dist == Distribution.SERVER) {
+                this.handleBundler(version, temp);
+            }
+
             // remap
             List<String> log = new ArrayList<>();
             // mojmap is distributed named -> obf, reverse it
@@ -124,12 +130,8 @@ public class MinecraftMaven {
             }
             Path logFile = temp.resolveSibling("remap_log.txt");
             Files.writeString(logFile, String.join("\n", log));
-//            Files.delete(temp);
-            // remove signatures
-            try (FileSystem fs = FileSystems.newFileSystem(destFile)) {
-                Path metaInf = fs.getPath("META-INF");
-                DirDeleter.run(metaInf);
-            }
+            Files.delete(temp);
+            FileUtils.removeJarSignatures(destFile);
             logger.quiet("Remapping done.");
         } else {
             logger.quiet("No mojmap for this version, skipping remapping.");
@@ -143,11 +145,55 @@ public class MinecraftMaven {
         logger.quiet("Generating POM");
         Path pomFile = this.artifact(name, version.id(), "pom");
         this.makePom(version, name, pomFile);
-        logger.quiet("Finished downloading {}.", side);
+        logger.quiet("Finished downloading {}.", dist);
+    }
+
+    private void generateMergedJar(FullVersion version) {
+        // TODO
+    }
+
+    private void handleBundler(FullVersion version, Path serverTempJar) throws IOException {
+        try (JarFile jarFile = new JarFile(serverTempJar.toFile())) {
+            String format = jarFile.getManifest().getMainAttributes().getValue("Bundler-Format");
+            if (format == null)
+                return;
+
+            logger.quiet("Un-bundling server");
+            if (!format.equals("1.0")) {
+                logger.warn("Server bundle uses an untested format, this may not go well.");
+            }
+        }
+
+        // move bundler to it's correct location
+        Path bundler = this.artifact("minecraft-bundler", version.id(), "jar");
+        Files.createDirectories(bundler.getParent());
+        Files.move(serverTempJar, bundler);
+        // generate POM
+        Path pomFile = this.artifact("minecraft-bundler", version.id(), "pom");
+        XmlBuilder.create().add(new XmlElement("project", List.of(
+                new XmlElement("groupId", "net.minecraft"),
+                new XmlElement("artifactId", "minecraft-bundler"),
+                new XmlElement("version", version.id())
+        ))).write(pomFile);
+
+        // locate and extract server
+        try (FileSystem fs = FileSystems.newFileSystem(bundler)) {
+            Path versions = fs.getPath("META-INF", "versions");
+            Path versionDir = FileUtils.getSingleFileInDirectory(versions);
+            if (versionDir == null)
+                return;
+            Path realServer = FileUtils.getSingleFileInDirectory(versionDir);
+            if (realServer == null)
+                return;
+
+            // copy server to its correct location
+            Files.copy(realServer, serverTempJar);
+            logger.quiet("Server un-bundled.");
+        }
     }
 
     @Nullable
-    private Path downloadMappings(FullVersion version, Side side) {
+    private Path downloadMappings(FullVersion version, Distribution side) {
         FullVersion.Downloads downloads = version.downloads();
         Optional<FullVersion.Download> optional = choose(side, downloads::clientMappings, downloads::serverMappings);
         if (optional.isPresent()) {
@@ -198,22 +244,13 @@ public class MinecraftMaven {
         return this.module(name, version).resolve(filename);
     }
 
-    private void makePom(FullVersion version, String artifactName, Path file) {
-        XmlBuilder pom = XmlBuilder.create().add(new XmlElement("project", List.of(
+    private void makePom(FullVersion version, String artifactName, Path file) throws IOException {
+        XmlBuilder.create().add(new XmlElement("project", List.of(
                 new XmlElement("groupId", "net.minecraft"),
                 new XmlElement("artifactId", artifactName),
                 new XmlElement("version", version.id()),
                 new XmlElement("dependencies", version.libraries().stream().flatMap(this::makeLibraryPoms).toList())
-        )));
-
-        try {
-            Files.createDirectories(file.getParent());
-            try (OutputStream stream = Files.newOutputStream(file)) {
-                pom.write(stream);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        ))).write(file);
     }
 
     private Stream<XmlElement> makeLibraryPoms(Library library) {
@@ -257,11 +294,11 @@ public class MinecraftMaven {
         return element;
     }
 
-    private static <T> T choose(Side side, Supplier<T> client, Supplier<T> server) {
+    private static <T> T choose(Distribution side, Supplier<T> client, Supplier<T> server) {
         return switch (side) {
             case CLIENT -> client.get();
             case SERVER -> server.get();
-            case MERGED -> throw new IllegalArgumentException();
+            case MERGED, BUNDLER -> throw new IllegalArgumentException();
         };
     }
 }
