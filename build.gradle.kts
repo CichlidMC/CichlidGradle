@@ -13,6 +13,10 @@ repositories {
 }
 
 dependencies {
+    minecraft {
+        version = "1.21"
+        distribution = "server"
+    }
     // compile against Cichlid API
     compileOnly("io.github.cichlidmc:CichlidApi:0.1.0")
     // run with full Cichlid
@@ -20,10 +24,6 @@ dependencies {
 }
 
 cichlid {
-    minecraft {
-        version = "1.21"
-        distribution = "server"
-    }
     runs {
         create("test") {
 //            parent = "client"

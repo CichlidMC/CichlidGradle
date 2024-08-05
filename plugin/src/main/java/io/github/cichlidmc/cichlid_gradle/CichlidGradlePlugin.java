@@ -3,14 +3,15 @@ package io.github.cichlidmc.cichlid_gradle;
 import java.net.URI;
 
 import io.github.cichlidmc.cichlid_gradle.extension.CichlidExtension;
-import io.github.cichlidmc.cichlid_gradle.extension.CichlidExtensionImpl;
+import io.github.cichlidmc.cichlid_gradle.extension.minecraft.MinecraftExtension;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 
 public abstract class CichlidGradlePlugin implements Plugin<Project> {
 	@Override
 	public void apply(Project project) {
-		project.getExtensions().create(CichlidExtension.class, "cichlid", CichlidExtensionImpl.class);
+		MinecraftExtension.setup(project);
+		CichlidExtension.setup(project);
 
 		project.getRepositories().maven(repo -> {
 			repo.setName("Minecraft Libraries");

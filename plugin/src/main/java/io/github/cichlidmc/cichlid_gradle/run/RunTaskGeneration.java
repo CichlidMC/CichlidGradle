@@ -14,7 +14,7 @@ import org.gradle.api.tasks.JavaExec;
 
 public class RunTaskGeneration {
 	public static void run(String mcVer, RunsStorage runsStorage, Project project) {
-		CichlidExtension extension = project.getExtensions().getByType(CichlidExtension.class);
+		CichlidExtension extension = CichlidExtension.get(project);
 		NamedDomainObjectContainer<RunConfiguration> runs = extension.getRuns();
 		addDefaultRuns(mcVer, runsStorage, runs);
 		runs.all(config -> generateTask(config, runs, project));

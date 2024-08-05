@@ -8,16 +8,14 @@ import io.github.cichlidmc.cichlid_gradle.run.RunTaskGeneration;
 import org.gradle.api.Project;
 
 public abstract class CichlidExtensionImpl implements CichlidExtension {
-	private final MinecraftExtension mc;
-
 	@Inject
 	public CichlidExtensionImpl(Project project) {
-		this.mc = this.getExtensions().create("minecraft", MinecraftExtension.class);
 		project.afterEvaluate(this::apply);
 	}
 
 	private void apply(Project project) {
-		String mcVer = this.mc.getVersion().get();
+		MinecraftExtension mc = MinecraftExtension.get(project);
+		String mcVer = mc.getVersion();
 		CichlidCache cache = CichlidCache.get(project);
 		cache.maven.ensureVersionDownloaded(mcVer);
 
@@ -26,7 +24,7 @@ public abstract class CichlidExtensionImpl implements CichlidExtension {
 			repo.setUrl(cache.maven.root);
 		});
 
-		String mcDist = this.mc.getDistribution().get();
+		String mcDist = mc.getDistribution();
 		project.getDependencies().add("implementation", "net.minecraft:minecraft-" + mcDist + ':' + mcVer);
 
 		RunTaskGeneration.run(mcVer, cache.runs, project);
