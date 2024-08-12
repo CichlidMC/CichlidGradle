@@ -1,19 +1,23 @@
 package io.github.cichlidmc.cichlid_gradle.cache;
 
-import com.google.common.base.Suppliers;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Artifact;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Features;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Library;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Natives;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion.Rule;
 import io.github.cichlidmc.cichlid_gradle.util.Distribution;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest;
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.VersionManifest.Version;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.cichlid_gradle.util.IoRunnable;
+import io.github.cichlidmc.cichlid_gradle.util.Lazy;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
+import io.github.cichlidmc.pistonmetaparser.FullVersion;
+import io.github.cichlidmc.pistonmetaparser.PistonMeta;
+import io.github.cichlidmc.pistonmetaparser.VersionManifest;
+import io.github.cichlidmc.pistonmetaparser.manifest.Version;
+import io.github.cichlidmc.pistonmetaparser.rule.Features;
+import io.github.cichlidmc.pistonmetaparser.rule.Rule;
+import io.github.cichlidmc.pistonmetaparser.version.download.Download;
+import io.github.cichlidmc.pistonmetaparser.version.download.Downloads;
+import io.github.cichlidmc.pistonmetaparser.version.library.Artifact;
+import io.github.cichlidmc.pistonmetaparser.version.library.Classifier;
+import io.github.cichlidmc.pistonmetaparser.version.library.Library;
+import io.github.cichlidmc.pistonmetaparser.version.library.Natives;
 import net.neoforged.art.api.Renamer;
 import net.neoforged.art.api.Transformer;
 import net.neoforged.srgutils.IMappingFile;
@@ -31,7 +35,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.jar.JarFile;
@@ -45,7 +48,7 @@ public class MinecraftMaven {
     public static final String PATH = "maven/v" + FORMAT;
 
     private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
-    private static final Supplier<VersionManifest> manifest = Suppliers.memoize(VersionManifest::fetch);
+    private static final Supplier<VersionManifest> manifest = new Lazy<>(PistonMeta::fetch);
     private static final Object lock = new Object();
 
     public final Path root;
@@ -69,15 +72,15 @@ public class MinecraftMaven {
         });
     }
 
-    private void tryDownloadVersion(String version) throws IOException {
+    private void tryDownloadVersion(String versionId) throws IOException {
         // doesn't exist, download everything
         VersionManifest manifest = MinecraftMaven.manifest.get();
-        Map<String, Version> versions = manifest.mapVersions();
-        if (!versions.containsKey(version))
+        Version version = manifest.getVersion(versionId);
+        if (version == null)
             return; // fake version
-        logger.quiet("Minecraft {} not cached, downloading for the first time. This could take a while.", version);
-        this.downloadVersion(versions.get(version));
-        logger.quiet("Download of Minecraft {} complete.", version);
+        logger.quiet("Minecraft {} not cached, downloading for the first time. This could take a while.", versionId);
+        this.downloadVersion(version);
+        logger.quiet("Download of Minecraft {} complete.", versionId);
     }
 
     private void downloadVersion(Version version) throws IOException {
@@ -86,7 +89,7 @@ public class MinecraftMaven {
         // all versions have a client
         this.downloadDist(full, Distribution.CLIENT);
         // not all versions have a server
-        if (full.downloads().server().isPresent()) {
+        if (full.downloads.server.isPresent()) {
             this.downloadDist(full, Distribution.SERVER);
             this.generateMergedJar(full);
             // bundler is handled in downloadDist
@@ -104,16 +107,16 @@ public class MinecraftMaven {
         }
 
         String name = "minecraft-" + dist;
-        Path destFile = this.artifact(name, version.id(), "jar");
+        Path destFile = this.artifact(name, version.id, "jar");
 
-        FullVersion.Downloads downloads = version.downloads();
-        FullVersion.Download jarDownload = choose(dist, downloads::client, downloads.server()::get);
+        Downloads downloads = version.downloads;
+        Download jarDownload = choose(dist, () -> downloads.client, downloads.server::get);
 
         Path mappingsFile = this.downloadMappings(version, dist);
         if (mappingsFile != null) {
             logger.quiet("Remapping to mojmap");
             // download to a temp file first for remapping
-            Path temp = this.artifact(name, version.id(), "jar.tmp");
+            Path temp = this.artifact(name, version.id, "jar.tmp");
             FileUtils.download(jarDownload, temp);
 
             if (dist == Distribution.SERVER) {
@@ -143,7 +146,7 @@ public class MinecraftMaven {
 
         // generate a POM
         logger.quiet("Generating POM");
-        Path pomFile = this.artifact(name, version.id(), "pom");
+        Path pomFile = this.artifact(name, version.id, "pom");
         this.makePom(version, name, pomFile);
         logger.quiet("Finished downloading {}.", dist);
     }
@@ -165,15 +168,15 @@ public class MinecraftMaven {
         }
 
         // move bundler to it's correct location
-        Path bundler = this.artifact("minecraft-bundler", version.id(), "jar");
+        Path bundler = this.artifact("minecraft-bundler", version.id, "jar");
         Files.createDirectories(bundler.getParent());
         Files.move(serverTempJar, bundler);
         // generate POM
-        Path pomFile = this.artifact("minecraft-bundler", version.id(), "pom");
+        Path pomFile = this.artifact("minecraft-bundler", version.id, "pom");
         XmlBuilder.create().add(new XmlElement("project", List.of(
                 new XmlElement("groupId", "net.minecraft"),
                 new XmlElement("artifactId", "minecraft-bundler"),
-                new XmlElement("version", version.id())
+                new XmlElement("version", version.id)
         ))).write(pomFile);
 
         // locate and extract server
@@ -194,10 +197,10 @@ public class MinecraftMaven {
 
     @Nullable
     private Path downloadMappings(FullVersion version, Distribution side) {
-        FullVersion.Downloads downloads = version.downloads();
-        Optional<FullVersion.Download> optional = choose(side, downloads::clientMappings, downloads::serverMappings);
+        Downloads downloads = version.downloads;
+        Optional<Download> optional = choose(side, () -> downloads.clientMappings, () -> downloads.serverMappings);
         if (optional.isPresent()) {
-            Path file = this.artifact(side + "-mappings", version.id(), "txt");
+            Path file = this.artifact(side + "-mappings", version.id, "txt");
             FileUtils.download(optional.get(), file);
             return file;
         }
@@ -248,29 +251,26 @@ public class MinecraftMaven {
         XmlBuilder.create().add(new XmlElement("project", List.of(
                 new XmlElement("groupId", "net.minecraft"),
                 new XmlElement("artifactId", artifactName),
-                new XmlElement("version", version.id()),
-                new XmlElement("dependencies", version.libraries().stream().flatMap(this::makeLibraryPoms).toList())
+                new XmlElement("version", version.id),
+                new XmlElement("dependencies", version.libraries.stream().flatMap(this::makeLibraryPoms).toList())
         ))).write(file);
     }
 
     private Stream<XmlElement> makeLibraryPoms(Library library) {
         // check rules first
-        if (!Rule.test(library.rules(), Features.EMPTY))
+        if (!Rule.test(library.rules, Features.EMPTY))
             return Stream.empty();
 
         List<XmlElement> elements = new ArrayList<>();
-        Optional<Artifact> artifact = library.download().artifact();
+        Optional<Artifact> artifact = library.artifact;
         if (artifact.isPresent()) {
-            elements.add(makeDependencyXml(library.name()));
+            elements.add(makeDependencyXml(library.name));
         }
 
-        Optional<Natives> natives = library.natives();
-        if (natives.isPresent()) {
-            String classifier = natives.get().choose();
-            if (classifier != null) {
-                String notation = library.name() + ':' + classifier;
-                elements.add(makeDependencyXml(notation));
-            }
+        Optional<Classifier> classifier = library.natives.flatMap(Natives::choose);
+        if (classifier.isPresent()) {
+            String notation = library.name + ':' + classifier.get().name;
+            elements.add(makeDependencyXml(notation));
         }
 
         if (elements.isEmpty()) {

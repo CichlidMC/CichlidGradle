@@ -8,8 +8,10 @@ import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.stream.Stream;
 
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.FullVersion;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
+import io.github.cichlidmc.pistonmetaparser.FullVersion;
+import io.github.cichlidmc.pistonmetaparser.version.library.Artifact;
+import io.github.cichlidmc.pistonmetaparser.version.library.Library;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
@@ -25,26 +27,18 @@ public class NativesStorage {
 	}
 
 	void extractNatives(FullVersion version) throws IOException {
-		Path dir = this.root.resolve(version.id());
+		Path dir = this.root.resolve(version.id);
 
-		for (FullVersion.Library library : version.libraries()) {
+		for (Library library : version.libraries) {
 
-			FullVersion.Natives natives = library.natives().orElse(null);
-			FullVersion.Classifiers classifiers = library.download().classifiers().orElse(null);
-
-			if (natives == null || classifiers == null)
-				continue;
-
-			FullVersion.Artifact artifact = classifiers.get(natives);
-			if (artifact == null)
-				continue;
-
-			logger.quiet("Extracting natives for library {}", library.name());
-			this.downloadAndExtract(artifact, dir);
+//			library.natives.flatMap(Natives::choose).ifPresent(artifact -> {
+//				logger.quiet("Extracting natives for library {}", library.name);
+//				this.downloadAndExtract(artifact, dir);
+//			});
 		}
 	}
 
-	private void downloadAndExtract(FullVersion.Artifact artifact, Path dir) throws IOException {
+	private void downloadAndExtract(Artifact artifact, Path dir) throws IOException {
 		Path tempJar = dir.resolve(TEMP_JAR);
 		FileUtils.downloadSilently(artifact, tempJar);
 

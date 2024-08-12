@@ -1,6 +1,6 @@
 package io.github.cichlidmc.cichlid_gradle.util;
 
-import io.github.cichlidmc.cichlid_gradle.pistonmeta.util.Downloadable;
+import io.github.cichlidmc.pistonmetaparser.util.Downloadable;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
