@@ -9,7 +9,7 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
-    mavenLocal()
+    maven("https://mvn.devos.one/snapshots")
 }
 
 dependencies {
