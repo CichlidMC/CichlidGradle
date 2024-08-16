@@ -1,6 +1,7 @@
 plugins {
     id("com.gradle.plugin-publish") version "1.2.1"
     id("com.gradleup.shadow") version "8.3.0"
+    id("com.github.johnrengelman.shadow") version "dummy"
 }
 
 base.archivesName = "CichlidGradle"
@@ -19,6 +20,7 @@ dependencies {
 }
 
 tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar::class) {
+    archiveClassifier = ""
     relocate("net.neoforged", "io.github.cichlidmc.shadow.net.neoforged")
 }
 
@@ -38,12 +40,6 @@ gradlePlugin {
 }
 
 publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-        }
-    }
-
     repositories {
         maven("https://mvn.devos.one/snapshots") {
             name = "devOS"
