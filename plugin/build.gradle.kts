@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.cichlidmc:PistonMetaParser:2.0.1")
+    implementation("io.github.cichlidmc:PistonMetaParser:2.0.2")
     implementation("net.neoforged:AutoRenamingTool:2.0.3")
 }
 
