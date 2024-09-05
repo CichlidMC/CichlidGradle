@@ -127,4 +127,12 @@ public class FileUtils {
             Files.writeString(manifest, "Manifest-Version: 1.0\nMain-Class: " + mainClass + '\n'); // trailing break is critical
         }
     }
+
+    public static byte[] readAllBytesUnchecked(Path path) {
+        try {
+            return Files.readAllBytes(path);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

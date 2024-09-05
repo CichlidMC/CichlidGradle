@@ -6,75 +6,76 @@ import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ClassMerger {
-    public static void run(Path path, Path other, Path merged, Dist dist) throws IOException {
-        // class has already been merged
-        if (Files.exists(merged))
-            return;
+    private static final FieldMerger fieldMerger = new FieldMerger();
+    private static final MethodMerger methodMerger = new MethodMerger();
 
-        // check for exclusivity
-        if (Files.exists(path) && !Files.exists(other)) {
-            copyExclusiveClass(path, merged, dist);
-            return;
-        }
-
+    public static void mergeClass(Map<MergeSource, Path> sources, Path dest) throws IOException {
         // merge fields, methods, and constructors
         // note: this code path shouldn't be hit after 1.17
-        ClassNode left = readClass(path);
-        ClassNode right = readClass(other);
+        Map<MergeSource, ClassNode> classes = new HashMap<>();
+        for (Map.Entry<MergeSource, Path> entry : sources.entrySet()) {
+            classes.put(entry.getKey(), readClass(entry.getValue()));
+        }
 
-        assertCommonFieldsMatch(left, right, path.getFileName().toString());
+        assertCommonAttributesMatch(classes);
         ClassNode mergedNode = new ClassNode();
-        // base merged on left, shouldn't matter
-        left.accept(mergedNode);
+
+        // doesn't matter which it's based on
+        ClassNode base = classes.values().iterator().next();
+        base.accept(mergedNode);
 
         mergedNode.fields.clear();
         mergedNode.methods.clear();
-        mergeFields(left, right, mergedNode);
-        mergeMethods(left, right, mergedNode);
+        fieldMerger.merge(classes, mergedNode);
+        methodMerger.merge(classes, mergedNode);
 
-        writeClass(mergedNode, merged);
+        writeClass(mergedNode, dest);
     }
 
-    private static void assertCommonFieldsMatch(ClassNode left, ClassNode right, String className) {
+    private static void assertCommonAttributesMatch(Map<MergeSource, ClassNode> classes) {
         // these should always match, if they don't something is very wrong
-        assertEqual(left.version, right.version, "version", className);
-        assertEqual(left.access, right.access, "access", className);
-        assertEqual(left.name, right.name, "name", className);
-        assertEqual(left.signature, right.signature, "signature", className);
-        assertEqual(left.superName, right.superName, "superName", className);
-        assertEqual(left.interfaces, right.interfaces, "interfaces", className);
-        assertEqual(left.sourceFile, right.sourceFile, "sourceFile", className);
-        assertEqual(left.sourceDebug, right.sourceDebug, "sourceDebug", className);
-        assertEqual(left.module, right.module, "module", className);
-        assertEqual(left.outerClass, right.outerClass, "outerClass", className);
-        assertEqual(left.outerMethod, right.outerMethod, "outerMethod", className);
-        assertEqual(left.outerMethodDesc, right.outerMethodDesc, "outerMethodDesc", className);
-        assertEqual(left.visibleAnnotations, right.visibleAnnotations, "visibleAnnotations", className);
-        assertEqual(left.invisibleAnnotations, right.invisibleAnnotations, "invisibleAnnotations", className);
-        assertEqual(left.visibleTypeAnnotations, right.visibleTypeAnnotations, "visibleTypeAnnotations", className);
-        assertEqual(left.invisibleTypeAnnotations, right.invisibleTypeAnnotations, "invisibleTypeAnnotations", className);
-        assertEqual(left.attrs, right.attrs, "attrs", className);
-        assertEqual(left.innerClasses, right.innerClasses, "innerClasses", className);
-        assertEqual(left.nestHostClass, right.nestHostClass, "nestHostClass", className);
-        assertEqual(left.nestMembers, right.nestMembers, "nestMembers", className);
-        assertEqual(left.permittedSubclasses, right.permittedSubclasses, "permittedSubclasses", className);
-        assertEqual(left.recordComponents, right.recordComponents, "recordComponents", className);
+
+        List<String> names = classes.values().stream().map(node -> node.name).distinct().toList();
+        if (names.size() != 1) {
+            throw new IllegalStateException("Trying to merge classes with different names: " + names);
+        }
+        
+        AttributeMatcher<ClassNode> matcher = new AttributeMatcher<>(names.getFirst(), classes);
+
+        matcher.test(node -> node.version, "version");
+        matcher.test(node -> node.access, "access");
+        matcher.test(node -> node.signature, "signature");
+        matcher.test(node -> node.superName, "superName");
+        matcher.test(node -> node.interfaces, "interfaces");
+        matcher.test(node -> node.sourceFile, "sourceFile");
+        matcher.test(node -> node.sourceDebug, "sourceDebug");
+        matcher.test(node -> node.module, "module");
+        matcher.test(node -> node.outerClass, "outerClass");
+        matcher.test(node -> node.outerMethod, "outerMethod");
+        matcher.test(node -> node.outerMethodDesc, "outerMethodDesc");
+        matcher.test(node -> node.visibleAnnotations, "visibleAnnotations");
+        matcher.test(node -> node.invisibleAnnotations, "invisibleAnnotations");
+        matcher.test(node -> node.visibleTypeAnnotations, "visibleTypeAnnotations");
+        matcher.test(node -> node.invisibleTypeAnnotations, "invisibleTypeAnnotations");
+        matcher.test(node -> node.attrs, "attrs");
+        matcher.test(node -> node.innerClasses, "innerClasses");
+        matcher.test(node -> node.nestHostClass, "nestHostClass");
+        matcher.test(node -> node.nestMembers, "nestMembers");
+        matcher.test(node -> node.permittedSubclasses, "permittedSubclasses");
+        matcher.test(node -> node.recordComponents, "recordComponents");
     }
 
-    private static void mergeFields(ClassNode left, ClassNode right, ClassNode merged) {
-    }
-
-    private static void mergeMethods(ClassNode left, ClassNode right, ClassNode merged) {
-    }
-
-    private static void copyExclusiveClass(Path path, Path dest, Dist dist) throws IOException {
+    public static void copyExclusiveClass(Path path, Path dest, Dist dist) throws IOException {
         ClassNode node = readClass(path);
         node.visibleAnnotations.add(makeDistAnnotation(dist));
         writeClass(node, dest);
@@ -95,23 +96,9 @@ public class ClassMerger {
         Files.write(path, bytes);
     }
 
-    private static AnnotationNode makeDistAnnotation(Dist dist) {
+    public static AnnotationNode makeDistAnnotation(Dist dist) {
         AnnotationNode node = new AnnotationNode(Type.getDescriptor(Distribution.class));
         node.visitEnum("value", Type.getDescriptor(Dist.class), dist.name());
         return node;
-    }
-
-    private static Dist opposite(Dist dist) {
-        return switch (dist) {
-            case CLIENT -> Dist.SERVER;
-            case SERVER -> Dist.CLIENT;
-            case BUNDLER -> throw new IllegalArgumentException();
-        };
-    }
-
-    private static void assertEqual(Object left, Object right, String name, String className) {
-        if (!Objects.equals(left, right)) {
-            throw new IllegalStateException("Mismatch between client and server class values of '" + name + "': " + left + ", " + right + " (class: " + className + ')');
-        }
     }
 }

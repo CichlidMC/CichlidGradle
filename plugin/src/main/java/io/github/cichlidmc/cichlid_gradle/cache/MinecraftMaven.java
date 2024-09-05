@@ -1,6 +1,8 @@
 package io.github.cichlidmc.cichlid_gradle.cache;
 
+import io.github.cichlidmc.annotations.Dist;
 import io.github.cichlidmc.cichlid_gradle.merge.JarMerger;
+import io.github.cichlidmc.cichlid_gradle.merge.MergeSource;
 import io.github.cichlidmc.cichlid_gradle.util.*;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
 import io.github.cichlidmc.pistonmetaparser.FullVersion;
@@ -149,10 +151,20 @@ public class MinecraftMaven {
     }
 
     private void generateMergedJar(FullVersion version) throws IOException {
+        List<MergeSource> sources = new ArrayList<>();
+
         Path clientJar = this.artifact("minecraft-client", version.id, "jar");
+        sources.add(new MergeSource(Dist.CLIENT, clientJar));
         Path serverJar = this.artifact("minecraft-server", version.id, "jar");
+        sources.add(new MergeSource(Dist.SERVER, serverJar));
+
+        Path bundlerJar = this.artifact("minecraft-bundler", version.id, "jar");
+        if (Files.exists(bundlerJar)) {
+            sources.add(new MergeSource(Dist.BUNDLER, bundlerJar));
+        }
+
         Path mergedJar = this.artifact("minecraft-merged", version.id, "jar");
-        JarMerger.merge(clientJar, serverJar, mergedJar);
+        JarMerger.merge(sources, mergedJar);
     }
 
     private void handleBundler(FullVersion version, Path serverTempJar) throws IOException {
