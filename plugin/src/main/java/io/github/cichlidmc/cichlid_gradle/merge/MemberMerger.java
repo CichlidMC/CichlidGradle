@@ -1,11 +1,16 @@
 package io.github.cichlidmc.cichlid_gradle.merge;
 
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldNode;
 
-import java.util.*;
-import java.util.function.Function;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.SequencedMap;
 
 public abstract class MemberMerger<T> {
     public final void merge(Map<MergeSource, ClassNode> classes, ClassNode merged) {
@@ -32,10 +37,17 @@ public abstract class MemberMerger<T> {
             return;
         }
 
-        // validate that merging is valid
-        String qualifiedName = merged.name + '.' + key.name;
-        AttributeMatcher<T> matcher = new AttributeMatcher<>(qualifiedName, members);
-        this.assertCommonAttributesMatch(matcher);
+        // validate that merging is valid. Create a dummy class, add the member to it, check that bytes are equal
+        List<ClassNode> dummyClasses = members.values().stream().map(member -> {
+            ClassNode dummy = makeDummy();
+            this.addMember(dummy, member);
+            return dummy;
+        }).toList();
+
+        if (!JarMerger.allEqual(dummyClasses, MemberMerger::toBytes, Arrays::equals)) {
+            String qualifiedName = merged.name + '.' + key.name;
+            throw new IllegalStateException("Cannot merge member: " + qualifiedName);
+        }
 
         // all equivalent, grab from any source
         T member = members.values().iterator().next();
@@ -50,8 +62,20 @@ public abstract class MemberMerger<T> {
 
     protected abstract MemberKey makeKey(T member);
 
-    protected abstract void assertCommonAttributesMatch(AttributeMatcher<T> matcher);
-
     public record MemberKey(String name, String desc) {
+    }
+
+    private static ClassNode makeDummy() {
+        ClassNode clazz = new ClassNode();
+        clazz.version = Opcodes.V1_8;
+        clazz.name = "io/github/cichlidmc/Dummy";
+        clazz.superName = "java/lang/Object";
+        return clazz;
+    }
+
+    private static byte[] toBytes(ClassNode node) {
+        ClassWriter writer = new ClassWriter(0);
+        node.accept(writer);
+        return writer.toByteArray();
     }
 }

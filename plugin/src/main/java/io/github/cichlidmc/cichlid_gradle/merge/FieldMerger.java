@@ -4,11 +4,14 @@ import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FieldMerger extends MemberMerger<FieldNode> {
     @Override
     protected void addAnnotation(FieldNode field, AnnotationNode annotation) {
+        if (field.visibleAnnotations == null)
+            field.visibleAnnotations = new ArrayList<>();
         field.visibleAnnotations.add(annotation);
     }
 
@@ -25,17 +28,5 @@ public class FieldMerger extends MemberMerger<FieldNode> {
     @Override
     protected MemberKey makeKey(FieldNode field) {
         return new MemberKey(field.name, field.desc);
-    }
-
-    @Override
-    protected void assertCommonAttributesMatch(AttributeMatcher<FieldNode> matcher) {
-        matcher.test(field -> field.access, "access");
-        matcher.test(field -> field.signature, "signature");
-        matcher.test(field -> field.value, "value");
-        matcher.test(field -> field.visibleAnnotations, "visibleAnnotations");
-        matcher.test(field -> field.invisibleAnnotations, "invisibleAnnotations");
-        matcher.test(field -> field.visibleTypeAnnotations, "visibleTypeAnnotations");
-        matcher.test(field -> field.invisibleTypeAnnotations, "invisibleTypeAnnotations");
-        matcher.test(field -> field.attrs, "attrs");
     }
 }

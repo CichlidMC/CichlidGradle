@@ -15,7 +15,7 @@ repositories {
 dependencies {
     minecraft {
         version = "1.21"
-        distribution = "server"
+        clientAndServer()
     }
     // compile against Cichlid API
     compileOnly("io.github.cichlidmc:CichlidApi:0.1.0")

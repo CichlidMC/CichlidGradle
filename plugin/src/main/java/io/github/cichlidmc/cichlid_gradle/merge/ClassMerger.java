@@ -6,14 +6,11 @@ import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldNode;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class ClassMerger {
     private static final FieldMerger fieldMerger = new FieldMerger();
@@ -49,34 +46,25 @@ public class ClassMerger {
         if (names.size() != 1) {
             throw new IllegalStateException("Trying to merge classes with different names: " + names);
         }
-        
-        AttributeMatcher<ClassNode> matcher = new AttributeMatcher<>(names.getFirst(), classes);
 
-        matcher.test(node -> node.version, "version");
-        matcher.test(node -> node.access, "access");
-        matcher.test(node -> node.signature, "signature");
-        matcher.test(node -> node.superName, "superName");
-        matcher.test(node -> node.interfaces, "interfaces");
-        matcher.test(node -> node.sourceFile, "sourceFile");
-        matcher.test(node -> node.sourceDebug, "sourceDebug");
-        matcher.test(node -> node.module, "module");
-        matcher.test(node -> node.outerClass, "outerClass");
-        matcher.test(node -> node.outerMethod, "outerMethod");
-        matcher.test(node -> node.outerMethodDesc, "outerMethodDesc");
-        matcher.test(node -> node.visibleAnnotations, "visibleAnnotations");
-        matcher.test(node -> node.invisibleAnnotations, "invisibleAnnotations");
-        matcher.test(node -> node.visibleTypeAnnotations, "visibleTypeAnnotations");
-        matcher.test(node -> node.invisibleTypeAnnotations, "invisibleTypeAnnotations");
-        matcher.test(node -> node.attrs, "attrs");
-        matcher.test(node -> node.innerClasses, "innerClasses");
-        matcher.test(node -> node.nestHostClass, "nestHostClass");
-        matcher.test(node -> node.nestMembers, "nestMembers");
-        matcher.test(node -> node.permittedSubclasses, "permittedSubclasses");
-        matcher.test(node -> node.recordComponents, "recordComponents");
+        // convert each class to bytes, filtering out mergeable attributes
+        // implementing an equals method for every needed field type is actually hell
+
+		if (!JarMerger.allEqual(classes.values(), ClassMerger::toCommonBytes, Arrays::equals)) {
+			throw new IllegalStateException("Common attribute mismatch for class " + names.getFirst());
+		}
+    }
+
+    private static byte[] toCommonBytes(ClassNode node) {
+        ClassWriter writer = new ClassWriter(0);
+        node.accept(new ClassMergeableAttributeFilter(writer));
+        return writer.toByteArray();
     }
 
     public static void copyExclusiveClass(Path path, Path dest, Dist dist) throws IOException {
         ClassNode node = readClass(path);
+        if (node.visibleAnnotations == null)
+            node.visibleAnnotations = new ArrayList<>();
         node.visibleAnnotations.add(makeDistAnnotation(dist));
         writeClass(node, dest);
     }

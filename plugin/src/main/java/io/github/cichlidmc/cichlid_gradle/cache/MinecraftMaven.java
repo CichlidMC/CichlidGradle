@@ -126,7 +126,7 @@ public class MinecraftMaven {
             List<String> log = new ArrayList<>();
             // mojmap is distributed named -> obf, reverse it
             IMappingFile mappings = IMappingFile.load(mappingsFile.toFile()).reverse();
-            Transformer.Factory transformer = Transformer.renamerFactory(mappings, true);
+            Transformer.Factory transformer = Transformer.renamerFactory(mappings, false);
             try (Renamer renamer = Renamer.builder().logger(log::add).add(transformer).build()) {
                 renamer.run(temp.toFile(), destFile.toFile());
             }
@@ -139,6 +139,7 @@ public class MinecraftMaven {
             logger.quiet("No mojmap for this version, skipping remapping.");
             // just download the jar
             FileUtils.download(jarDownload, destFile);
+            FileUtils.removeJarSignatures(destFile);
         }
 
         // TODO: decompile to generate sources
@@ -165,6 +166,8 @@ public class MinecraftMaven {
 
         Path mergedJar = this.artifact("minecraft-merged", version.id, "jar");
         JarMerger.merge(sources, mergedJar);
+        Path pomFile = this.artifact("minecraft-merged", version.id, "pom");
+        this.makePom(version, "minecraft-merged", pomFile);
     }
 
     private void handleBundler(FullVersion version, Path serverTempJar) throws IOException {

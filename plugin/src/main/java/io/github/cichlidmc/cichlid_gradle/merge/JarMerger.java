@@ -10,16 +10,24 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.zip.ZipOutputStream;
 
 public class JarMerger {
     private static final Logger logger = Logging.getLogger(JarMerger.class);
 
     public static void merge(List<MergeSource> sources, Path output) throws IOException {
         logger.quiet("Merging {} jars: {}", sources.size(), sources);
-        FileUtils.ensureCreated(output);
+
+        initEmptyZip(output);
 
         try (FileSystem merged = FileSystems.newFileSystem(output)) {
             Set<String> entries = new HashSet<>();
@@ -57,7 +65,7 @@ public class JarMerger {
         if (path.toString().endsWith(".class")) {
             ClassMerger.copyExclusiveClass(path, dest, dist);
         } else {
-            Files.copy(path, dest);
+            FileUtils.copy(path, dest);
         }
     }
 
@@ -65,7 +73,7 @@ public class JarMerger {
         if (allEqualContent(sources.values())) {
             // when file content is the same across all sources, just copy one over
             Path source = sources.values().iterator().next();
-            Files.copy(source, dest);
+            FileUtils.copy(source, dest);
         } else if (dest.toString().endsWith(".class")) {
             ClassMerger.mergeClass(sources, dest);
         } else {
@@ -86,5 +94,13 @@ public class JarMerger {
             }
         }
         return true;
+    }
+
+    private static void initEmptyZip(Path path) throws IOException {
+        // gradle breaks creation FileOpenOptions, need to manually set up the jar
+        FileUtils.ensureCreated(path);
+        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
+            out.finish();
+        }
     }
 }

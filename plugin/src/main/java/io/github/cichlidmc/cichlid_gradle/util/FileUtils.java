@@ -135,4 +135,12 @@ public class FileUtils {
             throw new RuntimeException(e);
         }
     }
+
+    public static void copy(Path from, Path to) throws IOException {
+        Path parent = to.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Files.copy(from, to);
+    }
 }
