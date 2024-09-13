@@ -55,6 +55,13 @@ public class JarMerger {
                     Dist dist = mapEntry.getKey().dist;
                     copyExclusiveEntry(source, dest, dist);
                 } else {
+                    // present in >1 source
+                    // check for case where not exclusive, but not present everywhere
+                    // this is not representable currently
+                    int missing = sources.size() - paths.size();
+                    if (missing >= 2) {
+                        throw new IllegalStateException("Entry is both non-exclusive and missing from some sources: " + entry);
+                    }
                     mergeEntry(paths, dest);
                 }
             }
