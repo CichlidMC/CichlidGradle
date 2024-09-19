@@ -1,7 +1,7 @@
 package io.github.cichlidmc.cichlid_gradle.merge;
 
-import io.github.cichlidmc.annotations.Dist;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
+import io.github.cichlidmc.distmarker.Dist;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 

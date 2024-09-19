@@ -1,7 +1,7 @@
 package io.github.cichlidmc.cichlid_gradle.merge;
 
-import io.github.cichlidmc.annotations.Dist;
 import io.github.cichlidmc.cichlid_gradle.util.IterableStream;
+import io.github.cichlidmc.distmarker.Dist;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;

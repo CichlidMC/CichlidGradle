@@ -1,10 +1,10 @@
 package io.github.cichlidmc.cichlid_gradle.cache;
 
-import io.github.cichlidmc.annotations.Dist;
 import io.github.cichlidmc.cichlid_gradle.merge.JarMerger;
 import io.github.cichlidmc.cichlid_gradle.merge.MergeSource;
 import io.github.cichlidmc.cichlid_gradle.util.*;
 import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
+import io.github.cichlidmc.distmarker.Dist;
 import io.github.cichlidmc.pistonmetaparser.FullVersion;
 import io.github.cichlidmc.pistonmetaparser.PistonMeta;
 import io.github.cichlidmc.pistonmetaparser.VersionManifest;

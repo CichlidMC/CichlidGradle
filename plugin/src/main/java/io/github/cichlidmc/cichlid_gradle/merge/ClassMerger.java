@@ -1,8 +1,8 @@
 package io.github.cichlidmc.cichlid_gradle.merge;
 
-import io.github.cichlidmc.annotations.Dist;
-import io.github.cichlidmc.annotations.Distribution;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
+import io.github.cichlidmc.distmarker.Dist;
+import io.github.cichlidmc.distmarker.Distribution;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
