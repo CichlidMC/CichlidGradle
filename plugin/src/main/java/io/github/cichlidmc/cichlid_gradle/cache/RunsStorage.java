@@ -26,7 +26,7 @@ public class RunsStorage {
 		this.root = root;
 	}
 
-	public List<Run> getRuns(String version) {
+	public List<DefaultRun> getDefaultRuns(String version) {
 		Path dir = this.dir(version);
 		if (!Files.exists(dir))
 			return List.of();
@@ -71,7 +71,7 @@ public class RunsStorage {
 				throw new IllegalStateException("Main-Class attribute is missing");
 			}
 
-			Run run = new Run("server", mainClass, List.of("nogui"), List.of("-Xmx1G"));
+			DefaultRun run = new DefaultRun("server", mainClass, List.of("nogui"), List.of("-Xmx1G"));
 			this.writeRun(version, run);
 		}
 	}
@@ -80,17 +80,17 @@ public class RunsStorage {
 		return this.root.resolve(version);
 	}
 
-	private Run readRun(Path file) {
-		return Run.parse(TinyJson.parseOrThrow(file));
+	private DefaultRun readRun(Path file) {
+		return DefaultRun.parse(TinyJson.parseOrThrow(file));
 	}
 
-	private void writeRun(FullVersion version, Run run) throws IOException {
+	private void writeRun(FullVersion version, DefaultRun run) throws IOException {
 		Path file = this.dir(version.id).resolve(run.name + ".json");
 		Files.createDirectories(file.getParent());
 		Files.writeString(file, run.encode().toString());
 	}
 
-	public record Run(String name, String mainClass, List<String> programArgs, List<String> jvmArgs) {
+	public record DefaultRun(String name, String mainClass, List<String> programArgs, List<String> jvmArgs) {
 		public JsonObject encode() {
 			JsonObject json = new JsonObject();
 			json.put("name", this.name);
@@ -100,7 +100,7 @@ public class RunsStorage {
 			return json;
 		}
 
-		public static Run parse(JsonValue value) {
+		public static DefaultRun parse(JsonValue value) {
 			JsonObject json = value.asObject();
 
 			String name = json.get("name").asString().value();
@@ -112,7 +112,7 @@ public class RunsStorage {
 					.map(arg -> arg.asString().value())
 					.toList();
 
-			return new Run(name, mainClass, programArgs, jvmArgs);
+			return new DefaultRun(name, mainClass, programArgs, jvmArgs);
 		}
 	}
 }

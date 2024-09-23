@@ -21,7 +21,7 @@ public class RunTaskGeneration {
 	}
 
 	private static void addDefaultRuns(String mcVer, RunsStorage runsStorage, NamedDomainObjectContainer<RunConfiguration> runs) {
-		runsStorage.getRuns(mcVer).forEach(run -> runs.register(run.name(), config -> {
+		runsStorage.getDefaultRuns(mcVer).forEach(run -> runs.register(run.name(), config -> {
 			config.getMainClass().set(run.mainClass());
 			config.getProgramArgs().get().addAll(run.programArgs());
 			config.getJvmArgs().get().addAll(run.jvmArgs());
@@ -60,6 +60,8 @@ public class RunTaskGeneration {
 		return capital + s.substring(1);
 	}
 
+	// from Application plugin
+
 	private record RuntimeClasspathProvider(JavaExec task, JvmFeatureInternal mainFeature) implements Callable<FileCollection> {
 		@Override
 		public FileCollection call() {
@@ -70,8 +72,6 @@ public class RunTaskGeneration {
 			}
 		}
 	}
-
-	// from Application plugin
 
 	private static FileCollection runtimeClasspath(JvmFeatureInternal mainFeature) {
 		return mainFeature.getSourceSet().getRuntimeClasspath();
