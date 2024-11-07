@@ -35,6 +35,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
@@ -45,6 +46,10 @@ import java.util.stream.Stream;
 public class MinecraftMaven {
     public static final int FORMAT = 1;
     public static final String PATH = "maven/v" + FORMAT;
+    public static final Set<String> MC_MODULES = Set.of(
+            "minecraft-client", "minecraft-server", "minecraft-merged", "minecraft-bundler",
+            "client-mappings", "server-mappings"
+    );
 
     private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
     private static final Supplier<VersionManifest> manifest = new Lazy<>(PistonMeta::fetch);

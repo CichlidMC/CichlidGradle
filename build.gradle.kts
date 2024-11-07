@@ -9,18 +9,17 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
-    maven("https://mvn.devos.one/snapshots")
+    cichlid.snapshots()
+    minecraft.libraries()
+    minecraft.pistonMeta()
 }
 
 dependencies {
-    minecraft {
-        version = "1.21"
-        clientAndServer()
-    }
+    implementation(minecraft.client("1.21"))
     // compile against Cichlid API
-    compileOnly("io.github.cichlidmc:CichlidApi:0.1.0")
+    compileOnly(cichlid.loaderApi("0.1.0"))
     // run with full Cichlid
-    runtimeOnly("io.github.cichlidmc:Cichlid:0.1.0")
+    runtimeOnly(cichlid.loader("0.1.0"))
 }
 
 cichlid {
