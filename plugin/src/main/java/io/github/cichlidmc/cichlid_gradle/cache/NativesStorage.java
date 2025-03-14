@@ -5,9 +5,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.cichlid_gradle.util.IterableStream;
@@ -63,7 +61,11 @@ public class NativesStorage {
 					String fileName = file.getFileName().toString();
 					if (!fileName.endsWith("META-INF")) {
 						Path dest = dir.resolve(fileName);
-						Files.copy(file, dest);
+						// rd-20090515 has the exact jinput dependency twice for some reason.
+						// it's probably not the only weird one.
+						if (!Files.exists(dest)) {
+							Files.copy(file, dest);
+						}
 					}
 				}
 			}
