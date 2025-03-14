@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
+import io.github.cichlidmc.cichlid_gradle.util.IterableStream;
 import io.github.cichlidmc.pistonmetaparser.FullVersion;
 import io.github.cichlidmc.pistonmetaparser.version.library.Classifier;
 import io.github.cichlidmc.pistonmetaparser.version.library.Library;
@@ -28,8 +29,12 @@ public class NativesStorage {
 		this.root = root;
 	}
 
+	public Path getDir(String version) {
+		return this.root.resolve(version);
+	}
+
 	void extractNatives(FullVersion version) throws IOException {
-		Path dir = this.root.resolve(version.id);
+		Path dir = this.getDir(version.id);
 
 		for (Library library : version.libraries) {
 			Optional<Classifier> maybeClassifier = library.natives.flatMap(Natives::choose);
@@ -48,14 +53,18 @@ public class NativesStorage {
 		try (FileSystem fs = FileSystems.newFileSystem(tempJar)) {
 			// jar should have 1 root
 			Path root = fs.getRootDirectories().iterator().next();
-			try (Stream<Path> stream = Files.list(root)) {
-				// the version manifest specifies files that should be excluded from extraction,
-				// but it's undocumented and a pain to handle, and it doesn't even matter in the end
-				// as far as I know.
-				for (Iterator<Path> itr = stream.iterator(); itr.hasNext();) {
-					Path file = itr.next();
-					Path dest = dir.resolve(file.getFileName().toString());
-					Files.copy(file, dest);
+			try (IterableStream<Path> files = new IterableStream<>(Files.list(root))) {
+				for (Path file : files) {
+					// the version manifest specifies files that should be excluded from extraction,
+					// but it's undocumented and a pain to handle, and it doesn't even matter in the end
+					// as far as I can tell. The only relevant case is META-INF, which needs to be skipped
+					// to avoid duplicates. META-INF also seems to be the only thing ever specified
+					// as an exclusion, so it makes sense.
+					String fileName = file.getFileName().toString();
+					if (!fileName.endsWith("META-INF")) {
+						Path dest = dir.resolve(fileName);
+						Files.copy(file, dest);
+					}
 				}
 			}
 		}

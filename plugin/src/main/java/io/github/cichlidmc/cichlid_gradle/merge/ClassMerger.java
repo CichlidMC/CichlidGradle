@@ -47,11 +47,13 @@ public class ClassMerger {
             throw new IllegalStateException("Trying to merge classes with different names: " + names);
         }
 
+        String name = names.getFirst();
+
         // convert each class to bytes, filtering out mergeable attributes
         // implementing an equals method for every needed field type is actually hell
 
 		if (!JarMerger.allEqual(classes.values(), ClassMerger::toCommonBytes, Arrays::equals)) {
-			throw new IllegalStateException("Common attribute mismatch for class " + names.getFirst());
+			throw new IllegalStateException("Common attribute mismatch for class " + name);
 		}
     }
 

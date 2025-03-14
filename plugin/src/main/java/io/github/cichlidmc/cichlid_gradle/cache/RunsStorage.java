@@ -3,8 +3,9 @@ package io.github.cichlidmc.cichlid_gradle.cache;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
@@ -26,13 +27,19 @@ public class RunsStorage {
 		this.root = root;
 	}
 
-	public List<DefaultRun> getDefaultRuns(String version) {
+	public Map<String, DefaultRunConfig> getDefaultRuns(String version) {
 		Path dir = this.dir(version);
 		if (!Files.exists(dir))
-			return List.of();
+			return Map.of();
 
 		try (Stream<Path> stream = Files.list(dir)) {
-			return stream.map(this::readRun).toList();
+			Map<String, DefaultRunConfig> map = new HashMap<>();
+			stream.forEach(path -> {
+				String name = extractName(path);
+				DefaultRunConfig config = readRun(path);
+				map.put(name, config);
+			});
+			return map;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -40,26 +47,18 @@ public class RunsStorage {
 
 	void generateRuns(FullVersion version, MinecraftMaven maven) {
 		try {
-			this.generateClientRun(version);
+			DefaultRunConfig client = ClientRunGenerator.generate(version);
+			this.writeRun(version, "client", client);
 			if (version.downloads.server.isPresent()) {
-				this.generateServerRun(version, maven);
+				DefaultRunConfig server = this.generateServerRun(version, maven);
+				this.writeRun(version, "server", server);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	private void generateClientRun(FullVersion version) throws IOException {
-		String mainClass = version.mainClass;
-		List<String> programArgs = new ArrayList<>();
-		List<String> jvmArgs = new ArrayList<>();
-
-		// TODO: account for all placeholders, needs some analysis
-
-
-	}
-
-	private void generateServerRun(FullVersion version, MinecraftMaven maven) throws IOException {
+	private DefaultRunConfig generateServerRun(FullVersion version, MinecraftMaven maven) throws IOException {
 		// read main class from server jar manifest
 		Path jar = maven.artifact("minecraft-server", version.id, "jar");
 		if (!Files.exists(jar)) {
@@ -71,8 +70,7 @@ public class RunsStorage {
 				throw new IllegalStateException("Main-Class attribute is missing");
 			}
 
-			DefaultRun run = new DefaultRun("server", mainClass, List.of("nogui"), List.of("-Xmx1G"));
-			this.writeRun(version, run);
+			return new DefaultRunConfig(mainClass, List.of("nogui"), List.of("-Xmx1G"));
 		}
 	}
 
@@ -80,30 +78,36 @@ public class RunsStorage {
 		return this.root.resolve(version);
 	}
 
-	private DefaultRun readRun(Path file) {
-		return DefaultRun.parse(TinyJson.parseOrThrow(file));
+	private DefaultRunConfig readRun(Path file) {
+		String name = extractName(file);
+		JsonValue json = TinyJson.parseOrThrow(file);
+		return DefaultRunConfig.parse(name, json);
 	}
 
-	private void writeRun(FullVersion version, DefaultRun run) throws IOException {
-		Path file = this.dir(version.id).resolve(run.name + ".json");
+	private void writeRun(FullVersion version, String name, DefaultRunConfig run) throws IOException {
+		Path file = this.dir(version.id).resolve(name + ".json");
 		Files.createDirectories(file.getParent());
 		Files.writeString(file, run.encode().toString());
 	}
 
-	public record DefaultRun(String name, String mainClass, List<String> programArgs, List<String> jvmArgs) {
+	private static String extractName(Path path) {
+		String fileName = path.getFileName().toString();
+		int dot = fileName.indexOf(".");
+		return dot == -1 ? fileName : fileName.substring(0, dot);
+	}
+
+	public record DefaultRunConfig(String mainClass, List<String> programArgs, List<String> jvmArgs) {
 		public JsonObject encode() {
 			JsonObject json = new JsonObject();
-			json.put("name", this.name);
 			json.put("main_class", this.mainClass);
 			json.put("program_args", JsonArray.of(this.programArgs.stream().map(JsonString::new).toArray(JsonValue[]::new)));
 			json.put("jvm_args", JsonArray.of(this.jvmArgs.stream().map(JsonString::new).toArray(JsonValue[]::new)));
 			return json;
 		}
 
-		public static DefaultRun parse(JsonValue value) {
+		public static DefaultRunConfig parse(String name, JsonValue value) {
 			JsonObject json = value.asObject();
 
-			String name = json.get("name").asString().value();
 			String mainClass = json.get("main_class").asString().value();
 			List<String> programArgs = json.get("program_args").asArray().stream()
 					.map(arg -> arg.asString().value())
@@ -112,7 +116,7 @@ public class RunsStorage {
 					.map(arg -> arg.asString().value())
 					.toList();
 
-			return new DefaultRun(name, mainClass, programArgs, jvmArgs);
+			return new DefaultRunConfig(mainClass, programArgs, jvmArgs);
 		}
 	}
 }

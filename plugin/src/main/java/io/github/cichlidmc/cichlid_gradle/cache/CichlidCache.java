@@ -23,9 +23,16 @@ public class CichlidCache {
 	}
 
 	public static CichlidCache get(Project project) {
+		return get(getPath(project));
+	}
+
+	public static CichlidCache get(Path path) {
+		return new CichlidCache(path);
+	}
+
+	public static Path getPath(Project project) {
 		Path cache = getGradleCache(project);
-		Path dir = cache.resolve(PATH);
-		return new CichlidCache(dir);
+		return cache.resolve(PATH);
 	}
 
 	private static Path getGradleCache(Project project) {

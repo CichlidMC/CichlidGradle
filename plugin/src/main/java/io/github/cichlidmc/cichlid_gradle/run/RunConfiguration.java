@@ -2,21 +2,26 @@ package io.github.cichlidmc.cichlid_gradle.run;
 
 import javax.inject.Inject;
 
-import io.github.cichlidmc.cichlid_gradle.util.HierarchicalList;
-import io.github.cichlidmc.cichlid_gradle.util.HierarchicalListImpl;
+import io.github.cichlidmc.cichlid_gradle.util.ListPatch;
 import org.gradle.api.Named;
 import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.SourceSet;
 
 public abstract class RunConfiguration implements Named {
-	public abstract Property<String> getParent();
+	public abstract Property<String> getVersion();
+	public abstract Property<String> getTemplate();
 	public abstract Property<String> getMainClass();
-	public abstract Property<HierarchicalList<String>> getProgramArgs();
-	public abstract Property<HierarchicalList<String>> getJvmArgs();
+	public abstract Property<String> getRunDir();
+	public abstract Property<String> getSourceSet();
+	public abstract Property<ListPatch<String>> getProgramArgs();
+	public abstract Property<ListPatch<String>> getJvmArgs();
 
 	@Inject // inject name
 	public RunConfiguration() {
-		this.getProgramArgs().convention(new HierarchicalListImpl<>());
-		this.getJvmArgs().convention(new HierarchicalListImpl<>());
+		this.getRunDir().convention("run");
+		this.getSourceSet().convention("main");
+		this.getProgramArgs().convention(new ListPatch<>());
+		this.getJvmArgs().convention(new ListPatch<>());
 	}
 
 	public void jvmArg(String arg) {
@@ -25,5 +30,9 @@ public abstract class RunConfiguration implements Named {
 
 	public void programArg(String arg) {
 		this.getProgramArgs().get().add(arg);
+	}
+
+	public void sourceSet(SourceSet sourceSet) {
+		this.getSourceSet().set(sourceSet.getName());
 	}
 }

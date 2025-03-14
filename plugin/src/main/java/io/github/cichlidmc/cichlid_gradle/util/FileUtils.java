@@ -90,7 +90,10 @@ public class FileUtils {
     public static void ensureCreated(Path file) throws IOException {
         if (!Files.exists(file)) {
             // can't use open option, gradle breaks it
-            Files.createDirectories(file.getParent());
+            Path folder = file.getParent();
+            if (folder != null) {
+                Files.createDirectories(folder);
+            }
             Files.createFile(file);
         }
     }

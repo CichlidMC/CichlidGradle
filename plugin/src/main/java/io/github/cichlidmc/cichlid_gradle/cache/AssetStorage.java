@@ -18,7 +18,7 @@ import org.gradle.api.logging.Logging;
 public class AssetStorage {
 	private static final Logger logger = Logging.getLogger(AssetStorage.class);
 
-	private final Path root;
+	public final Path root;
 
 	AssetStorage(Path root) {
 		this.root = root;

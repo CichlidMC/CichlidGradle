@@ -38,6 +38,7 @@ bin/
 ### Mac OS ###
 .DS_Store
 
+/run/
 /downloads/
 /logs/
 /resourcepacks/
