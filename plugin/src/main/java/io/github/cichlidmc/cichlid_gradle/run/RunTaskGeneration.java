@@ -37,7 +37,10 @@ public class RunTaskGeneration {
 		Map<String, RunsStorage.DefaultRunConfig> templateMap = cache.runs.getDefaultRuns(version);
 		RunsStorage.DefaultRunConfig template = templateMap.get(templateName);
 		if (template == null) {
-			throw new IllegalArgumentException("There is no run config template named '" + templateName + "'. Options: " + templateMap.keySet());
+			throw new IllegalArgumentException(
+					"There is no run config template named '" + templateName
+					+ "' for version '" + version + "'. Options: " + templateMap.keySet()
+			);
 		}
 
 		project.getTasks().register(taskName, JavaExec.class, task -> {

@@ -14,12 +14,8 @@ repositories {
     minecraft.pistonMeta()
 }
 
-val gerald: SourceSet by sourceSets.creating
-val geraldImplementation: Configuration by configurations.getting
-
 dependencies {
-    geraldImplementation(minecraft.client("1.14.4"))
-    implementation(minecraft.client("1.21.4"))
+    implementation(minecraft.client("1.17.1"))
     // compile against Cichlid API
 //    compileOnly(cichlid.loaderApi("0.1.0"))
     // run with full Cichlid
@@ -28,15 +24,13 @@ dependencies {
 
 cichlid {
     runs {
-        register("client 1.14.4") {
-            version = "1.14.4"
-            template = "client"
-            sourceSet(gerald)
+        register("client") {
+            version = "1.17.1"
         }
-        register("client 1.21.4") {
-            version = "1.21.4"
-            template = "client"
-        }
+//        register("client 1.21.4") {
+//            version = "1.21.4"
+//            template = "client"
+//        }
 
 //        register("serverButCooler") {
 //            template = "server"

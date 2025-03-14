@@ -20,7 +20,7 @@ public class MinecraftDepsExtension {
 		return this.deps.create("net.minecraft:minecraft-server:" + version);
 	}
 
-	public Dependency clientAndServer(String version) {
+	public Dependency merged(String version) {
 		return this.deps.create("net.minecraft:minecraft-merged:" + version);
 	}
 

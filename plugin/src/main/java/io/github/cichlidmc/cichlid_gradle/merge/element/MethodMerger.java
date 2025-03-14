@@ -1,4 +1,4 @@
-package io.github.cichlidmc.cichlid_gradle.merge;
+package io.github.cichlidmc.cichlid_gradle.merge.element;
 
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;

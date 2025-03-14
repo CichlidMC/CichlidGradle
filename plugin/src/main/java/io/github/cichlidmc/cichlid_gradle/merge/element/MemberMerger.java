@@ -1,5 +1,8 @@
-package io.github.cichlidmc.cichlid_gradle.merge;
+package io.github.cichlidmc.cichlid_gradle.merge.element;
 
+import io.github.cichlidmc.cichlid_gradle.merge.ClassMerger;
+import io.github.cichlidmc.cichlid_gradle.merge.JarMerger;
+import io.github.cichlidmc.cichlid_gradle.merge.MergeSource;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AnnotationNode;

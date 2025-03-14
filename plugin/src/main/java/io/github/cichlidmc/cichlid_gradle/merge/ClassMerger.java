@@ -1,5 +1,8 @@
 package io.github.cichlidmc.cichlid_gradle.merge;
 
+import io.github.cichlidmc.cichlid_gradle.merge.element.FieldMerger;
+import io.github.cichlidmc.cichlid_gradle.merge.element.InterfacesMerger;
+import io.github.cichlidmc.cichlid_gradle.merge.element.MethodMerger;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.distmarker.Dist;
 import io.github.cichlidmc.distmarker.Distribution;
@@ -18,7 +21,6 @@ public class ClassMerger {
 
     public static void mergeClass(Map<MergeSource, Path> sources, Path dest) throws IOException {
         // merge fields, methods, and constructors
-        // note: this code path shouldn't be hit after 1.17
         Map<MergeSource, ClassNode> classes = new HashMap<>();
         for (Map.Entry<MergeSource, Path> entry : sources.entrySet()) {
             classes.put(entry.getKey(), readClass(entry.getValue()));
@@ -35,6 +37,7 @@ public class ClassMerger {
         mergedNode.methods.clear();
         fieldMerger.merge(classes, mergedNode);
         methodMerger.merge(classes, mergedNode);
+        InterfacesMerger.merge(classes, mergedNode);
 
         writeClass(mergedNode, dest);
     }
