@@ -11,11 +11,13 @@ repositories {
     mavenCentral()
     cichlid.snapshots()
     minecraft.libraries()
-    minecraft.pistonMeta()
+    minecraft.versions()
 }
 
+val mcVer = "1.17.1"
+
 dependencies {
-    implementation(minecraft.client("1.17.1"))
+    implementation(minecraft.client(mcVer))
     // compile against Cichlid API
 //    compileOnly(cichlid.loaderApi("0.1.0"))
     // run with full Cichlid
@@ -25,7 +27,7 @@ dependencies {
 cichlid {
     runs {
         register("client") {
-            version = "1.17.1"
+            version = mcVer
         }
 //        register("client 1.21.4") {
 //            version = "1.21.4"

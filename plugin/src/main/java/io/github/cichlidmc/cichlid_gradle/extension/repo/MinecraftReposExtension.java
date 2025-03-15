@@ -2,6 +2,7 @@ package io.github.cichlidmc.cichlid_gradle.extension.repo;
 
 import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.dsl.RepositoryHandler;
 import org.gradle.api.plugins.ExtensionAware;
 
 import java.net.URI;
@@ -20,11 +21,25 @@ public class MinecraftReposExtension {
         });
     }
 
-    public void pistonMeta() {
+    public void versions() {
         CichlidCache cache = CichlidCache.get(this.project);
-        this.project.getRepositories().maven(repo -> {
-            repo.setName("Piston Meta");
-            repo.setUrl(cache.maven.root);
+        RepositoryHandler repos = this.project.getRepositories();
+
+        repos.exclusiveContent(exclusive -> {
+            exclusive.filter(contents -> {
+                contents.includeGroup(CichlidCache.MINECRAFT_GROUP);
+				CichlidCache.MINECRAFT_MODULES.forEach(
+						module -> contents.includeModule(CichlidCache.MINECRAFT_GROUP, module)
+				);
+			});
+            exclusive.forRepository(() -> repos.ivy(repo -> {
+                repo.setName("Minecraft Versions");
+                repo.setUrl(cache.root);
+                repo.patternLayout(layout -> {
+                    layout.ivy(CichlidCache.IVY_PATTERN);
+                    layout.artifact(CichlidCache.IVY_PATTERN);
+                });
+			}));
         });
     }
 

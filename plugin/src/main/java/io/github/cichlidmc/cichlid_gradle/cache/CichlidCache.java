@@ -1,25 +1,74 @@
 package io.github.cichlidmc.cichlid_gradle.cache;
 
-import java.nio.file.Path;
-import java.util.Objects;
-
+import io.github.cichlidmc.cichlid_gradle.cache.storage.AssetStorage;
+import io.github.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
+import io.github.cichlidmc.cichlid_gradle.cache.task.TaskContext;
+import io.github.cichlidmc.pistonmetaparser.FullVersion;
+import io.github.cichlidmc.pistonmetaparser.manifest.Version;
 import org.gradle.api.Project;
 
-public class CichlidCache {
-	public static final String PROJECT_CACHE_PROPERTY = "cichlid.use_project_cache";
-	public static final String PATH = "cichlid-gradle";
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.Set;
 
+/**
+ * Interface for Cichlid's global Minecraft cache. Holds no state, just interfaces with the filesystem.
+ * Layout:
+ * - root
+ *   - v1
+ *     - assets
+ *       - indices
+ *       - objects
+ *       - .lock
+ *     - <version>
+ *       - natives
+ *       - mappings
+ *       - jars
+ *       - runs
+ */
+public class CichlidCache {
+	// pattern is relative to root
+	public static final String IVY_PATTERN = "[revision]/jars/[module]-[revision].[ext]";
+	public static final String MINECRAFT_GROUP = "net.minecraft";
+	public static final Set<String> MINECRAFT_MODULES = Set.of(
+			"minecraft-client", "minecraft-server", "minecraft-merged", "minecraft-bundler"
+	);
+
+	public static final String PROJECT_CACHE_PROPERTY = "cichlid.use_project_cache";
+	public static final int FORMAT = 1;
+	public static final String PATH = "cichlid-gradle-cache/v" + FORMAT;
+
+	public final Path root;
+	// assets are shared by many versions, they're stored separately
 	public final AssetStorage assets;
-	public final NativesStorage natives;
-	public final RunsStorage runs;
-	public final MinecraftMaven maven;
 
 	private CichlidCache(Path root) {
-		Path mc = root.resolve("minecraft");
-		this.assets = new AssetStorage(mc.resolve("assets"));
-		this.natives = new NativesStorage(mc.resolve("natives"));
-		this.runs = new RunsStorage(mc.resolve("runs"));
-		this.maven = new MinecraftMaven(mc.resolve(MinecraftMaven.PATH), this);
+		this.root = root;
+		this.assets = new AssetStorage(this.root.resolve("assets"));
+	}
+
+	public VersionStorage getVersion(String version) {
+		return new VersionStorage(this.root.resolve(version), version);
+	}
+
+	public void ensureVersionIsCached(String versionId) {
+		// see if this version actually exists
+		Version version = ManifestCache.getVersion(versionId);
+		if (version == null)
+			return;
+
+		FullVersion fullVersion = ManifestCache.expand(version);
+
+		TaskContext ctx = new TaskContext();
+		this.assets.submitInitialTasks(fullVersion.assetIndex, ctx);
+
+		VersionStorage storage = this.getVersion(versionId);
+		storage.submitInitialTasks(fullVersion, ctx);
+
+		ctx.report();
+
+		// all tasks are done. If an exception wasn't thrown by report, everything was successful.
+		storage.markComplete();
 	}
 
 	public static CichlidCache get(Project project) {

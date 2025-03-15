@@ -1,11 +1,7 @@
 package io.github.cichlidmc.cichlid_gradle.run;
 
-import java.io.File;
-import java.util.List;
-import java.util.Map;
-
 import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
-import io.github.cichlidmc.cichlid_gradle.cache.RunsStorage;
+import io.github.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
 import io.github.cichlidmc.cichlid_gradle.extension.CichlidExtension;
 import io.github.cichlidmc.cichlid_gradle.util.ListPatch;
 import org.gradle.api.Project;
@@ -14,6 +10,10 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
+
+import java.io.File;
+import java.util.List;
+import java.util.Map;
 
 public class RunTaskGeneration {
 	public static void setup(Project project) {
@@ -32,15 +32,16 @@ public class RunTaskGeneration {
 		String taskName = "run" + capitalizeFirstCharacter(name);
 
 		String version = getOrThrow(config.getVersion(), name, "version");
+		VersionStorage versionCache = cache.getVersion(version);
 
 		String templateName = config.getTemplate().orElse(name).get();
-		Map<String, RunsStorage.DefaultRunConfig> templateMap = cache.runs.getDefaultRuns(version);
-		RunsStorage.DefaultRunConfig template = templateMap.get(templateName);
+		Map<String, RunTemplate> templateMap = versionCache.runs.getTemplates(version);
+		RunTemplate template = templateMap.get(templateName);
 		if (template == null) {
-			throw new IllegalArgumentException(
-					"There is no run config template named '" + templateName
-					+ "' for version '" + version + "'. Options: " + templateMap.keySet()
-			);
+			throw new IllegalArgumentException(String.format(
+					"There is no run config template named '%s' for version '%s'. Options: %s",
+					templateName, version, templateMap.values()
+			));
 		}
 
 		project.getTasks().register(taskName, JavaExec.class, task -> {
@@ -60,7 +61,7 @@ public class RunTaskGeneration {
 
 			Placeholders.DynamicContext ctx = new Placeholders.DynamicContext(
 					runDir.toPath(),
-					cache.natives.getDir(version),
+					versionCache.natives.root,
 					cache.assets.root
 			);
 			task.args(getArgs(config.getProgramArgs(), template.programArgs(), ctx));

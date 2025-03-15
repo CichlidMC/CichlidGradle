@@ -2,8 +2,6 @@ package io.github.cichlidmc.cichlid_gradle.merge;
 
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.distmarker.Dist;
-import org.gradle.api.logging.Logger;
-import org.gradle.api.logging.Logging;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -22,11 +20,7 @@ import java.util.function.Function;
 import java.util.zip.ZipOutputStream;
 
 public class JarMerger {
-    private static final Logger logger = Logging.getLogger(JarMerger.class);
-
     public static void merge(List<MergeSource> sources, Path output) throws IOException {
-        logger.quiet("Merging {} jars: {}", sources.size(), sources);
-
         initEmptyZip(output);
 
         try (FileSystem merged = FileSystems.newFileSystem(output)) {

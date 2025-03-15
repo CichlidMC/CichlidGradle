@@ -1,18 +1,17 @@
 package io.github.cichlidmc.cichlid_gradle;
 
-import java.util.Objects;
-
 import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
-import io.github.cichlidmc.cichlid_gradle.cache.MinecraftMaven;
 import io.github.cichlidmc.cichlid_gradle.extension.CichlidExtension;
 import io.github.cichlidmc.cichlid_gradle.extension.dep.CichlidDepsExtension;
-import io.github.cichlidmc.cichlid_gradle.extension.repo.CichlidReposExtension;
 import io.github.cichlidmc.cichlid_gradle.extension.dep.MinecraftDepsExtension;
+import io.github.cichlidmc.cichlid_gradle.extension.repo.CichlidReposExtension;
 import io.github.cichlidmc.cichlid_gradle.extension.repo.MinecraftReposExtension;
 import io.github.cichlidmc.cichlid_gradle.run.RunTaskGeneration;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
+
+import java.util.Objects;
 
 public abstract class CichlidGradlePlugin implements Plugin<Project> {
 	public static final String NAME = "CichlidGradle";
@@ -33,7 +32,7 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 					if (isMinecraftDependency(dep)) {
 						String version = Objects.requireNonNull(dep.getVersion());
 						CichlidCache cache = CichlidCache.get(project);
-						cache.maven.ensureVersionDownloaded(version);
+						cache.ensureVersionIsCached(version);
 					}
 				})
 		);
@@ -41,7 +40,7 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 
 	private static boolean isMinecraftDependency(Dependency dep) {
 		return "net.minecraft".equals(dep.getGroup())
-				&& MinecraftMaven.MC_MODULES.contains(dep.getName())
+				&& CichlidCache.MINECRAFT_MODULES.contains(dep.getName())
 				&& dep.getVersion() != null;
 	}
 }

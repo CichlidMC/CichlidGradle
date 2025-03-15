@@ -4,22 +4,25 @@ import io.github.cichlidmc.pistonmetaparser.util.Downloadable;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
-
-import javax.annotation.Nullable;
 
 public class FileUtils {
     private static final Logger logger = Logging.getLogger(FileUtils.class);
@@ -31,6 +34,12 @@ public class FileUtils {
 
     public static void download(Downloadable downloadable, Path dest) {
         download(downloadable, dest, true);
+    }
+
+    public static CompletableFuture<Void> downloadAsync(Downloadable downloadable, Path dest) {
+        // TODO: actually make this async
+        downloadSilently(downloadable, dest);
+        return CompletableFuture.completedFuture(null);
     }
 
     private static void download(Downloadable downloadable, Path dest, boolean loud) {
@@ -124,11 +133,27 @@ public class FileUtils {
 
         try (FileSystem fs = FileSystems.newFileSystem(path)) {
             Path metaInf = fs.getPath("META-INF");
-            DirDeleter.run(metaInf);
+            deleteRecursively(metaInf);
             Files.createDirectories(metaInf);
             Path manifest = metaInf.resolve("MANIFEST.MF");
             Files.writeString(manifest, "Manifest-Version: 1.0\nMain-Class: " + mainClass + '\n'); // trailing break is critical
         }
+    }
+
+    public static void deleteRecursively(Path dir) throws IOException {
+        Files.walkFileTree(dir, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                Files.delete(dir);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     public static byte[] readAllBytesUnchecked(Path path) {

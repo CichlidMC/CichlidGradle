@@ -1,12 +1,10 @@
-package io.github.cichlidmc.cichlid_gradle.cache;
+package io.github.cichlidmc.cichlid_gradle.run;
 
-import io.github.cichlidmc.cichlid_gradle.run.Placeholders;
 import io.github.cichlidmc.cichlid_gradle.util.Pair;
 import io.github.cichlidmc.pistonmetaparser.FullVersion;
 import io.github.cichlidmc.pistonmetaparser.rule.Features;
 import io.github.cichlidmc.pistonmetaparser.rule.Rule;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ClientRunGenerator {
+public class ClientRunTemplateGenerator {
     public static final Set<String> GAME_ARG_WHITELIST = Set.of(
             "--gameDir", "--workDir", "--tweakClass",
             "--assetsDir", "--assetIndex",
@@ -31,14 +29,14 @@ public class ClientRunGenerator {
     public static final String XSS = "-Xss";
     public static final String FLAG = "true";
 
-    static RunsStorage.DefaultRunConfig generate(FullVersion version) throws IOException {
+    public static RunTemplate generate(FullVersion version) {
         Map<String, String> gameArgs = getGameArgs(version);
         assertPlaceholdersAllowed(gameArgs);
         List<String> gameArgsList = recombineArgs(gameArgs);
         Map<String, String> jvmArgs = getJvmArgs(version);
         assertPlaceholdersAllowed(jvmArgs);
         List<String> jvmArgsList = recombineArgs(jvmArgs);
-        return new RunsStorage.DefaultRunConfig(version.mainClass, gameArgsList, jvmArgsList);
+        return new RunTemplate(version.mainClass, gameArgsList, jvmArgsList);
     }
 
     private static Map<String, String> getGameArgs(FullVersion version) {
