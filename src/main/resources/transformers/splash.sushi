@@ -1,0 +1,13 @@
+{
+  "target": "net.minecraft.client.resources.SplashManager",
+  "transform": {
+    "type": "inject",
+    "method": {
+      "name": "apply",
+      "comment": "parameter matching is currently broken and sushi is in the middle of refactors, this workstm",
+      "expect": 2
+    },
+    "point": "tail",
+    "hook": "io.github.cichlidmc.cichlid_gradle_test.SplashReplacer.hook"
+  }
+}

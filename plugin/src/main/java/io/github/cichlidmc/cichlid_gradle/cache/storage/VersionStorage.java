@@ -16,7 +16,7 @@ public class VersionStorage extends LockableStorage {
 
 	public final MappingsStorage mappings;
 	public final JarsStorage jars;
-	public final NativesStorage natives;
+	public final Path natives;
 	public final RunTemplateStorage runs;
 
 	public final Path completeMarker;
@@ -26,7 +26,7 @@ public class VersionStorage extends LockableStorage {
 		this.version = version;
 		this.mappings = new MappingsStorage(root.resolve("mappings"));
 		this.jars = new JarsStorage(root.resolve("jars"), version);
-		this.natives = new NativesStorage(root.resolve("natives"));
+		this.natives = root.resolve("natives");
 		this.runs = new RunTemplateStorage(root.resolve("runs"));
 		this.completeMarker = root.resolve(COMPLETE_MARKER);
 	}

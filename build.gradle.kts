@@ -18,10 +18,8 @@ val mcVer = "1.17.1"
 
 dependencies {
     implementation(minecraft.client(mcVer))
-    // compile against Cichlid API
-//    compileOnly(cichlid.loaderApi("0.1.0"))
-    // run with full Cichlid
-//    runtimeOnly(cichlid.loader("0.1.0"))
+    compileOnly(cichlid.api("0.3.2"))
+    cichlidRuntime(cichlid.runtime("0.3.2"))
 }
 
 cichlid {

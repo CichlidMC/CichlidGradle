@@ -1,10 +1,12 @@
 package io.github.cichlidmc.cichlid_gradle.run;
 
+import io.github.cichlidmc.cichlid_gradle.CichlidGradlePlugin;
 import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import io.github.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
 import io.github.cichlidmc.cichlid_gradle.extension.CichlidExtension;
 import io.github.cichlidmc.cichlid_gradle.util.ListPatch;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
@@ -59,10 +61,13 @@ public class RunTaskGeneration {
 			task.setWorkingDir(runDir);
 			task.doFirst($ -> runDir.mkdirs());
 
+			Configuration cichlid = project.getConfigurations().getByName(CichlidGradlePlugin.CICHLID_CONFIGURATION);
+			for (File agent : cichlid.getFiles()) {
+				task.jvmArgs("-javaagent:" + agent.getAbsolutePath() + "=dist=" + templateName + ",version=" + version);
+			}
+
 			Placeholders.DynamicContext ctx = new Placeholders.DynamicContext(
-					runDir.toPath(),
-					versionCache.natives.root,
-					cache.assets.root
+					runDir.toPath(), versionCache.natives, cache.assets.root
 			);
 			task.args(getArgs(config.getProgramArgs(), template.programArgs(), ctx));
 			task.jvmArgs(getArgs(config.getJvmArgs(), template.jvmArgs(), ctx));

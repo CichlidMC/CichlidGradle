@@ -44,7 +44,7 @@ public class AssetsTask extends CacheTask {
 		for (Asset asset : fullIndex.objects.values()) {
 			Path dest = this.storage.object(asset);
 			if (this.shouldDownload(asset, dest)) {
-				FileUtils.downloadSilently(asset, dest);
+				FileUtils.download(asset, dest);
 			}
 		}
 
