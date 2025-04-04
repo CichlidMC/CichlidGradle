@@ -66,6 +66,8 @@ public class SetupTask extends CacheTask {
 		if (this.storage.isComplete())
 			return;
 
+		this.logger.quiet("Minecraft version {} is not cached, setting up for the first time", this.version.id);
+
 		if (Files.exists(this.storage.root)) {
 			this.logger.warn("Found existing incomplete files for version {}, overwriting", this.version.id);
 			FileUtils.deleteRecursively(this.storage.root);

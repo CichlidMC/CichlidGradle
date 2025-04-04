@@ -36,6 +36,8 @@ public class AssetsTask extends CacheTask {
 		if (this.storage.isComplete(this.index))
 			return;
 
+		this.logger.quiet("Asset index {} is not cached, downloading", this.index.id);
+
 		Path indexFile = this.storage.index(this.index);
 		new Download(this.index, indexFile).run();
 		// read downloaded file to avoid downloading again with expand()

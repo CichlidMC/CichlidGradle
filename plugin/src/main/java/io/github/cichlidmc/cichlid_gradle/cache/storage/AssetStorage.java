@@ -20,7 +20,7 @@ public class AssetStorage extends LockableStorage {
 
 	public void submitInitialTasks(AssetIndex index, TaskContext context) {
 		AssetsTask task = new AssetsTask(context, this, index);
-		context.submit(task);
+		context.submitSilently(task);
 	}
 
 	public Path index(AssetIndex index) {

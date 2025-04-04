@@ -17,19 +17,32 @@ public class TaskContext {
 	private final Set<CacheTask> incompleteTasks = Collections.synchronizedSet(new HashSet<>());
 	private final Map<CacheTask, Throwable> errors = Collections.synchronizedMap(new IdentityHashMap<>());
 
+	private boolean hasLoudTasks = false;
+
 	public CompletableFuture<Void> submit(CacheTask task) {
-		logger.quiet("Starting new task: {} - {}", task.name, task.description);
+		return this.doSubmit(task, true);
+	}
+
+	public CompletableFuture<Void> submitSilently(CacheTask task) {
+		return this.doSubmit(task, false);
+	}
+
+	private CompletableFuture<Void> doSubmit(CacheTask task, boolean log) {
+		if (log) {
+			logger.quiet("Starting new task: {} - {}", task.name, task.description);
+		}
 
 		CompletableFuture<Void> future = CompletableFuture.runAsync(task)
-				.thenRun(() -> this.finishTask(task))
+				.thenRun(() -> this.finishTask(task, log))
 				.exceptionally(error -> {
-					this.finishTask(task);
+					this.finishTask(task, log);
 					this.errors.put(task, error);
 					return null;
 				});
 
 		this.futures.put(task, future);
 		this.incompleteTasks.add(task);
+		this.hasLoudTasks |= log;
 		return future;
 	}
 
@@ -47,7 +60,10 @@ public class TaskContext {
 		this.join();
 
 		if (this.errors.isEmpty()) {
-			logger.quiet("All tasks finished successfully.");
+			if (this.hasLoudTasks) {
+				logger.quiet("All tasks finished successfully.");
+			}
+
 			return;
 		}
 
@@ -58,8 +74,10 @@ public class TaskContext {
 		throw root;
 	}
 
-	private void finishTask(CacheTask task) {
-		logger.quiet("Task complete: {}", task.name);
+	private void finishTask(CacheTask task, boolean log) {
 		this.incompleteTasks.remove(task);
+		if (log) {
+			logger.quiet("Task complete: {}", task.name);
+		}
 	}
 }

@@ -33,7 +33,7 @@ public class VersionStorage extends LockableStorage {
 
 	public void submitInitialTasks(FullVersion version, TaskContext context) {
 		SetupTask task = new SetupTask(context, this, version);
-		context.submit(task);
+		context.submitSilently(task);
 	}
 
 	public boolean isComplete() {
