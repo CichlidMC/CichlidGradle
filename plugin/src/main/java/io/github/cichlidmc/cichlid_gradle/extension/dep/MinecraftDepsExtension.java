@@ -1,5 +1,7 @@
 package io.github.cichlidmc.cichlid_gradle.extension.dep;
 
+import io.github.cichlidmc.cichlid_gradle.util.Distribution;
+import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
@@ -13,15 +15,25 @@ public class MinecraftDepsExtension {
     }
 
     public Dependency client(String version) {
-		return this.deps.create("net.minecraft:minecraft-client:" + version);
+		return this.ofDist(Distribution.CLIENT, version);
 	}
 
 	public Dependency server(String version) {
-		return this.deps.create("net.minecraft:minecraft-server:" + version);
+		return this.ofDist(Distribution.SERVER, version);
 	}
 
 	public Dependency merged(String version) {
-		return this.deps.create("net.minecraft:minecraft-merged:" + version);
+		return this.ofDist(Distribution.MERGED, version);
+	}
+
+	public Dependency of(Action<MinecraftSpec> action) {
+		MinecraftSpecImpl spec = new MinecraftSpecImpl();
+		action.execute(spec);
+		return this.deps.create(spec.toDependencyString());
+	}
+
+	private Dependency ofDist(Distribution dist, String version) {
+		return this.of(spec -> spec.distribution(dist).version(version));
 	}
 
 	public static void setup(Project project) {
