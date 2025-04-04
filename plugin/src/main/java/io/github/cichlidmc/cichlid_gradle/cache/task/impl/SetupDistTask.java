@@ -4,6 +4,7 @@ import io.github.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
 import io.github.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import io.github.cichlidmc.cichlid_gradle.cache.task.TaskContext;
 import io.github.cichlidmc.cichlid_gradle.util.Distribution;
+import io.github.cichlidmc.cichlid_gradle.util.DownloadBatch;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.pistonmetaparser.FullVersion;
 import io.github.cichlidmc.pistonmetaparser.version.download.Download;
@@ -20,7 +21,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.jar.JarFile;
 
 public class SetupDistTask extends CacheTask {
@@ -60,10 +60,11 @@ public class SetupDistTask extends CacheTask {
 		Path jar = this.storage.jars.path(this.dist);
 		Path mappings = this.storage.mappings.path(this.dist);
 
-		CompletableFuture.allOf(
-				FileUtils.downloadAsync(jarDownload, tempJar),
-				FileUtils.downloadAsync(mappingsDownload.get(), mappings)
-		).join();
+		new DownloadBatch.Builder()
+				.download(jarDownload, tempJar)
+				.download(mappingsDownload.get(), mappings)
+				.build()
+				.execute();
 
 		if (this.dist == Distribution.SERVER) {
 			this.tryUnbundle(tempJar);

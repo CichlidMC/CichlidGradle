@@ -14,7 +14,7 @@ repositories {
     minecraft.versions()
 }
 
-val mcVer = "1.17.1"
+val mcVer = "1.21.5"
 
 dependencies {
     implementation(minecraft.client(mcVer))

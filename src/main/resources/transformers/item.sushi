@@ -1,0 +1,11 @@
+{
+  "target": "net.minecraft.world.item.Items",
+  "transform": {
+    "type": "inject",
+    "method": {
+      "name": "<clinit>"
+    },
+    "point": "tail",
+    "hook": "io.github.cichlidmc.cichlid_gradle_test.Hooks.registerItems"
+  }
+}

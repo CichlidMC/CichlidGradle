@@ -1,96 +1,38 @@
 package io.github.cichlidmc.cichlid_gradle.util;
 
+import io.github.cichlidmc.cichlid_gradle.CichlidGradlePlugin;
 import io.github.cichlidmc.pistonmetaparser.util.Downloadable;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.io.InputStream;
+import java.net.URLConnection;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Formatter;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
 public class FileUtils {
     private static final Logger logger = Logging.getLogger(FileUtils.class);
-    private static final HttpClient client = HttpClient.newBuilder().build();
 
-    public static void downloadSilently(Downloadable downloadable, Path dest) {
-        download(downloadable, dest, false);
-    }
-
-    public static void download(Downloadable downloadable, Path dest) {
-        download(downloadable, dest, true);
-    }
-
-    public static CompletableFuture<Void> downloadAsync(Downloadable downloadable, Path dest) {
-        // TODO: actually make this async
-        downloadSilently(downloadable, dest);
-        return CompletableFuture.completedFuture(null);
-    }
-
-    private static void download(Downloadable downloadable, Path dest, boolean loud) {
-        HttpRequest request = HttpRequest.newBuilder(downloadable.url()).build();
-        try {
-            if (loud) {
-                logger.lifecycle("Downloading {}...", dest.getFileName());
-            }
-
-            long start = System.currentTimeMillis();
-            byte[] data = client.send(request, HttpResponse.BodyHandlers.ofByteArray()).body();
-
-            if (loud) {
-                long end = System.currentTimeMillis();
-                String mb = String.format("%.3f", data.length / 1000f / 1000f);
-                logger.lifecycle("Downloaded {}mb in {}ms.", mb, end - start);
-            }
-
-            // validate
-            if (downloadable.size() != data.length) {
-                throw new RuntimeException("Downloaded file did not match expected size of " + downloadable.size());
-            }
-            if (!sha1(data).equals(downloadable.sha1())) {
-                throw new RuntimeException("Downloaded file did not match expected hash of " + downloadable.sha1());
-            }
-            // valid
-            Files.createDirectories(dest.getParent());
-            Files.createFile(dest);
-            Files.write(dest, data);
-        } catch (InterruptedException | IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static String sha1(byte[] data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-1");
-            byte[] hash = digest.digest(data);
-            Formatter formatter = new Formatter();
-            for (byte b : hash) {
-                formatter.format("%02x", b);
-            }
-            return formatter.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
+    public static InputStream openDownloadStream(Downloadable downloadable) throws IOException {
+        URLConnection connection = downloadable.url().toURL().openConnection();
+        connection.addRequestProperty("User-Agent", CichlidGradlePlugin.NAME + " / " + CichlidGradlePlugin.VERSION);
+        if (downloadable.size() != connection.getContentLengthLong())
+            throw new RuntimeException("Downloaded file did not match expected size of " + downloadable.size());
+        return connection.getInputStream();
     }
 
     public static String sha1(Path file) {
         try {
-            return sha1(Files.readAllBytes(file));
+            MessageDigest messageDigest = Hashes.createDigest("SHA-1");
+            byte[] data = Files.readAllBytes(file);
+            return Hashes.format(messageDigest.digest(data));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -118,6 +60,25 @@ public class FileUtils {
             }
 
             return list.getFirst();
+        }
+    }
+
+    public static void unzip(Path target, Path dest, Predicate<String> filter) throws IOException {
+        try (FileSystem fs = FileSystems.newFileSystem(target)) {
+            Path root = fs.getRootDirectories().iterator().next();
+            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    String fileName = file.getFileName().toString();
+                    if (filter.test(fileName)) {
+                        Path fileDest = dest.resolve(root.relativize(file).toString());
+                        if (!Files.exists(fileDest))
+                            FileUtils.copy(file, fileDest);
+                    }
+
+                    return FileVisitResult.CONTINUE;
+                }
+            });
         }
     }
 
@@ -166,9 +127,31 @@ public class FileUtils {
 
     public static void copy(Path from, Path to) throws IOException {
         Path parent = to.getParent();
-        if (parent != null) {
+        if (parent != null)
             Files.createDirectories(parent);
-        }
         Files.copy(from, to);
+    }
+
+    public static void move(Path from, Path to) throws IOException {
+        Path parent = to.getParent();
+        if (parent != null)
+            Files.createDirectories(parent);
+        try {
+            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException ignored) {
+            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    public static Path createTempFile(Path target) throws IOException {
+        Path dir = target.getParent();
+        Files.createDirectories(dir);
+        return Files.createTempFile(dir, target.getFileName().toString(), ".tmp");
+    }
+
+    public static Path createTempDirectory(Path target) throws IOException {
+        Path dir = target.getParent();
+        Files.createDirectories(dir);
+        return Files.createTempDirectory(dir, target.getFileName().toString());
     }
 }

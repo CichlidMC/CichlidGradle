@@ -4,6 +4,8 @@ import io.github.cichlidmc.cichlid_gradle.cache.storage.AssetStorage;
 import io.github.cichlidmc.cichlid_gradle.cache.storage.LockableStorage;
 import io.github.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import io.github.cichlidmc.cichlid_gradle.cache.task.TaskContext;
+import io.github.cichlidmc.cichlid_gradle.util.Download;
+import io.github.cichlidmc.cichlid_gradle.util.DownloadBatch;
 import io.github.cichlidmc.cichlid_gradle.util.FileUtils;
 import io.github.cichlidmc.pistonmetaparser.version.assets.Asset;
 import io.github.cichlidmc.pistonmetaparser.version.assets.AssetIndex;
@@ -35,18 +37,20 @@ public class AssetsTask extends CacheTask {
 			return;
 
 		Path indexFile = this.storage.index(this.index);
-		FileUtils.downloadSilently(this.index, indexFile);
+		new Download(this.index, indexFile).run();
 		// read downloaded file to avoid downloading again with expand()
 		JsonValue indexJson = TinyJson.parse(indexFile);
 		FullAssetIndex fullIndex = FullAssetIndex.parse(indexJson);
 		long startTime = System.currentTimeMillis();
 
+		DownloadBatch.Builder builder = new DownloadBatch.Builder();
 		for (Asset asset : fullIndex.objects.values()) {
 			Path dest = this.storage.object(asset);
 			if (this.shouldDownload(asset, dest)) {
-				FileUtils.download(asset, dest);
+				builder.download(asset, dest);
 			}
 		}
+		builder.build().execute();
 
 		if (fullIndex.isVirtual()) {
 			this.logger.quiet("Extracting virtual assets");
@@ -74,8 +78,7 @@ public class AssetsTask extends CacheTask {
 			Asset asset = entry.getValue();
 			Path dest = dir.resolve(path);
 			Path src = this.storage.object(asset);
-			Files.createDirectories(dest.getParent());
-			Files.copy(src, dest);
+			FileUtils.copy(src, dest);
 		}
 	}
 

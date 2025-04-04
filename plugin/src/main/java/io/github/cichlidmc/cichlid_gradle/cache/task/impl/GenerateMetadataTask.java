@@ -67,21 +67,13 @@ public class GenerateMetadataTask extends CacheTask {
 			if (!Rule.test(library.rules, Features.EMPTY))
 				continue;
 
-			Optional<Artifact> artifact = library.artifact;
-			if (artifact.isPresent()) {
-				elements.add(makeDependencyElement(library.name, null));
-			}
-
-			Optional<Classifier> classifier = library.natives.flatMap(Natives::choose);
-			classifier.ifPresent(value -> elements.add(
-					makeDependencyElement(library.name, value.name)
-			));
+			elements.add(makeDependencyElement(library.name));
 		}
 
 		return elements;
 	}
 
-	private static XmlElement makeDependencyElement(String notation, @Nullable String classifier) {
+	private static XmlElement makeDependencyElement(String notation) {
 		String[] split = notation.split(":");
 
 		Map<String, String> attributes = new HashMap<>();
@@ -89,6 +81,7 @@ public class GenerateMetadataTask extends CacheTask {
 		attributes.put("name", split[1]);
 		attributes.put("rev", split[2]);
 
+		String classifier = split.length == 4 ? split[3] : null;
 		List<XmlElement> children = classifier == null ? List.of() : List.of(new XmlElement("artifact", Map.of(
 				"name", split[1],
 				"type", "jar",

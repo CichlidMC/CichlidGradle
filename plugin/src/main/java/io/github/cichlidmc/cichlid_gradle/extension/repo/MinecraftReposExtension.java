@@ -10,6 +10,8 @@ import org.gradle.api.plugins.ExtensionAware;
 import java.net.URI;
 
 public class MinecraftReposExtension {
+    public static final URI LIBRARIES_URL = URI.create("https://libraries.minecraft.net/");
+
     private final Project project;
 
     private MinecraftReposExtension(Project project) {
@@ -21,11 +23,22 @@ public class MinecraftReposExtension {
     }
 
     public MavenArtifactRepository libraries(Action<? super MavenArtifactRepository> action) {
-        return this.project.getRepositories().maven(repo -> {
+        RepositoryHandler repos = this.project.getRepositories();
+
+        MavenArtifactRepository libraries = repos.maven(repo -> {
             repo.setName("Minecraft Libraries");
-            repo.setUrl(URI.create("https://libraries.minecraft.net/"));
+            repo.setUrl(LIBRARIES_URL);
             action.execute(repo);
         });
+
+        repos.exclusiveContent(exclusive -> exclusive.forRepositories(libraries).filter(contents -> {
+            // LWJGL must be gotten from here instead of central
+            contents.includeGroup("org.lwjgl");
+            // this is the only place mojang libraries are hosted, might as well declare it
+            contents.includeGroup("com.mojang");
+        }));
+
+        return libraries;
     }
 
     public void versions() {

@@ -22,7 +22,7 @@ public record Hashes(String sha1, String sha256, String sha512, String md5) {
 		);
 	}
 
-	private static MessageDigest createDigest(String algorithm) {
+	public static MessageDigest createDigest(String algorithm) {
 		try {
 			return MessageDigest.getInstance(algorithm);
 		} catch (NoSuchAlgorithmException e) {
@@ -30,7 +30,7 @@ public record Hashes(String sha1, String sha256, String sha512, String md5) {
 		}
 	}
 
-	private static String format(byte[] bytes) {
+	public static String format(byte[] bytes) {
 		Formatter formatter = new Formatter();
 		for (byte b : bytes) {
 			formatter.format("%02x", b);
