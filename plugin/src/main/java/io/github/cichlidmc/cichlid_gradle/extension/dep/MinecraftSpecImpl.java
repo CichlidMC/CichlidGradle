@@ -2,6 +2,8 @@ package io.github.cichlidmc.cichlid_gradle.extension.dep;
 
 import io.github.cichlidmc.cichlid_gradle.util.Distribution;
 import org.gradle.api.InvalidUserDataException;
+import org.gradle.api.artifacts.ExternalModuleDependency;
+import org.gradle.api.artifacts.dsl.DependencyFactory;
 
 public final class MinecraftSpecImpl implements MinecraftSpec {
 	private Distribution dist;
@@ -19,14 +21,14 @@ public final class MinecraftSpecImpl implements MinecraftSpec {
 		return this;
 	}
 
-	public String toDependencyString() {
+	public ExternalModuleDependency createDependencyOrThrow(DependencyFactory factory) {
 		if (this.dist == null) {
 			throw new InvalidUserDataException("Minecraft distribution is not specified.");
 		} else if (this.version == null) {
 			throw new InvalidUserDataException("Minecraft version is not specified.");
 		}
 
-		return "net.minecraft:minecraft-" + this.dist.name + ':' + this.version;
+		return factory.create("net.minecraft", "minecraft-" + this.dist.name, this.version);
 	}
 
 	@Override
