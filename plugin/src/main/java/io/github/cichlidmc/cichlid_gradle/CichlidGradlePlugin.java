@@ -7,7 +7,6 @@ import io.github.cichlidmc.cichlid_gradle.extension.dep.MinecraftDepsExtension;
 import io.github.cichlidmc.cichlid_gradle.extension.repo.CichlidReposExtension;
 import io.github.cichlidmc.cichlid_gradle.extension.repo.MinecraftReposExtension;
 import io.github.cichlidmc.cichlid_gradle.run.RunTaskGeneration;
-import io.github.cichlidmc.cichlid_gradle.transform.TransformedAttribute;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -31,7 +30,7 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 		CichlidDepsExtension.setup(project);
 		MinecraftDepsExtension.setup(project);
 		RunTaskGeneration.setup(project);
-		TransformedAttribute.setup(project);
+		// TransformedAttribute.setup(project);
 
 		ConfigurationContainer configurations = project.getConfigurations();
 		setupConfigurations(configurations);
@@ -59,7 +58,7 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 		configurations.named("runtimeClasspath", runtime -> runtime.extendsFrom(cichlidRuntime.get()));
 
 		// compile classpath must be transformed
-		configurations.named("compileClasspath", compile -> compile.getAttributes().attribute(TransformedAttribute.INSTANCE, true));
+		// configurations.named("compileClasspath", compile -> compile.getAttributes().attribute(TransformedAttribute.INSTANCE, true));
 	}
 
 	private static boolean isMinecraftDependency(Dependency dep) {

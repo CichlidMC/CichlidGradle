@@ -90,7 +90,7 @@ public class SetupDistTask extends CacheTask {
 			this.context.submit(new GenerateServerRunTemplateTask(this.context, this.storage));
 		}
 
-		// TODO: decomp
+		this.context.submit(new DecompileTask(this.context, this.dist, jar));
 	}
 
 	private void tryUnbundle(Path serverTempJar) throws IOException {
@@ -100,7 +100,7 @@ public class SetupDistTask extends CacheTask {
 				return;
 
 			if (!format.equals("1.0")) {
-				logger.warn("Server bundle uses an untested format, this may not go well.");
+				this.logger.warn("Server bundle uses an untested format, this may not go well.");
 			}
 		}
 
@@ -125,6 +125,6 @@ public class SetupDistTask extends CacheTask {
 			Files.copy(realServer, serverTempJar);
 		}
 
-		// TODO: decomp bundler
+		this.context.submit(new DecompileTask(this.context, Distribution.BUNDLER, bundler));
 	}
 }

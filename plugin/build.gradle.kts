@@ -17,8 +17,10 @@ repositories {
 dependencies {
     implementation("io.github.cichlidmc:DistributionMarker:1.0.1")
     implementation("io.github.cichlidmc:PistonMetaParser:2.0.2")
+    implementation("io.github.cichlidmc:sushi:0.1.0")
     implementation("net.neoforged:AutoRenamingTool:2.0.3")
     implementation("org.ow2.asm:asm-tree:9.7")
+    implementation("org.vineflower:vineflower:1.11.1")
 }
 
 tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar::class) {

@@ -10,11 +10,7 @@ import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
 import io.github.cichlidmc.pistonmetaparser.FullVersion;
 import io.github.cichlidmc.pistonmetaparser.rule.Features;
 import io.github.cichlidmc.pistonmetaparser.rule.Rule;
-import io.github.cichlidmc.pistonmetaparser.version.library.Artifact;
-import io.github.cichlidmc.pistonmetaparser.version.library.Classifier;
 import io.github.cichlidmc.pistonmetaparser.version.library.Library;
-import io.github.cichlidmc.pistonmetaparser.version.library.Natives;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -22,7 +18,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public class GenerateMetadataTask extends CacheTask {
 	private final Distribution dist;

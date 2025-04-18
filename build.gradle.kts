@@ -17,10 +17,7 @@ repositories {
 val mcVer = "1.21.5"
 
 dependencies {
-    implementation(minecraft.of {
-        client()
-        version(mcVer)
-    })
+    implementation(minecraft.client(mcVer))
 
     compileOnly(cichlid.api("0.3.2"))
     cichlidRuntime(cichlid.runtime("0.3.2"))

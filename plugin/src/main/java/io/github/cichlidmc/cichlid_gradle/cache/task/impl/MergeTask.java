@@ -4,6 +4,7 @@ import io.github.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import io.github.cichlidmc.cichlid_gradle.cache.task.TaskContext;
 import io.github.cichlidmc.cichlid_gradle.merge.JarMerger;
 import io.github.cichlidmc.cichlid_gradle.merge.MergeSource;
+import io.github.cichlidmc.cichlid_gradle.util.Distribution;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -22,6 +23,6 @@ public class MergeTask extends CacheTask {
 	@Override
 	protected void doRun() throws IOException {
 		JarMerger.merge(this.sources, this.output);
-		// TODO: decompile
+		this.context.submit(new DecompileTask(this.context, Distribution.MERGED, this.output));
 	}
 }

@@ -1,5 +1,6 @@
 package io.github.cichlidmc.cichlid_gradle.extension.dep;
 
+import io.github.cichlidmc.cichlid_gradle.transform.TransformedAttribute;
 import io.github.cichlidmc.cichlid_gradle.util.Distribution;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.artifacts.ExternalModuleDependency;
@@ -28,7 +29,9 @@ public final class MinecraftSpecImpl implements MinecraftSpec {
 			throw new InvalidUserDataException("Minecraft version is not specified.");
 		}
 
-		return factory.create("net.minecraft", "minecraft-" + this.dist.name, this.version);
+		ExternalModuleDependency dep = factory.create("net.minecraft", "minecraft-" + this.dist.name, this.version);
+		// dep.attributes(attrs -> attrs.attribute(TransformedAttribute.INSTANCE, true));
+		return dep;
 	}
 
 	@Override
