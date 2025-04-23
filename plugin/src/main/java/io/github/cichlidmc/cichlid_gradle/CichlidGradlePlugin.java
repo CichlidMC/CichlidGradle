@@ -30,7 +30,6 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 		CichlidDepsExtension.setup(project);
 		MinecraftDepsExtension.setup(project);
 		RunTaskGeneration.setup(project);
-		// TransformedAttribute.setup(project);
 
 		ConfigurationContainer configurations = project.getConfigurations();
 		setupConfigurations(configurations);
@@ -56,9 +55,6 @@ public abstract class CichlidGradlePlugin implements Plugin<Project> {
 
 		// add Cichlid and its dependencies to the runtime classpath
 		configurations.named("runtimeClasspath", runtime -> runtime.extendsFrom(cichlidRuntime.get()));
-
-		// compile classpath must be transformed
-		// configurations.named("compileClasspath", compile -> compile.getAttributes().attribute(TransformedAttribute.INSTANCE, true));
 	}
 
 	private static boolean isMinecraftDependency(Dependency dep) {
