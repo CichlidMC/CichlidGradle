@@ -20,7 +20,7 @@ import java.util.Map;
 public class RunTaskGeneration {
 	public static void setup(Project project) {
 		// ideally tasks.addAllLater would be used, but that's not allowed.
-		project.afterEvaluate(RunTaskGeneration::generate);
+		// project.afterEvaluate(RunTaskGeneration::generate);
 	}
 
 	private static void generate(Project project) {

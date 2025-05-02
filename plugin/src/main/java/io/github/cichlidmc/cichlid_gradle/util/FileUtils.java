@@ -23,8 +23,9 @@ public class FileUtils {
     public static InputStream openDownloadStream(Downloadable downloadable) throws IOException {
         URLConnection connection = downloadable.url().toURL().openConnection();
         connection.addRequestProperty("User-Agent", CichlidGradlePlugin.NAME + " / " + CichlidGradlePlugin.VERSION);
-        if (downloadable.size() != connection.getContentLengthLong())
-            throw new RuntimeException("Downloaded file did not match expected size of " + downloadable.size());
+        long length = connection.getContentLengthLong();
+        if (downloadable.size() != length)
+            throw new RuntimeException("Downloaded file size of " + length + " did not match expected size of " + downloadable.size());
         return connection.getInputStream();
     }
 

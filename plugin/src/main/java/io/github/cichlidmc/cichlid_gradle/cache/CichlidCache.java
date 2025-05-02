@@ -13,22 +13,31 @@ import java.util.Set;
 
 /**
  * Interface for Cichlid's global Minecraft cache. Holds no state, just interfaces with the filesystem.
+ * Layout is versioned, and each one can be found at {@code "root/v" + FORMAT}.
+ * <p>
  * Layout:
- * - root
- *   - v1
- *     - assets
- *       - indices
- *       - objects
- *       - .lock
- *     - <version>
- *       - natives
- *       - mappings
- *       - jars
- *       - runs
+ * <ul>
+ *     <li>
+ *         assets
+ *         <ul>
+ *             <li>indices</li>
+ *             <li>objects</li>
+ *             <li>.lock</li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         $version
+ *         <ul>
+ *             <li>natives</li>
+ *             <li>mappings</li>
+ *             <li>jars</li>
+ *             <li>runs</li>
+ *         </ul>
+ *     </li>
+ * </ul>
  */
-public class CichlidCache {
+public final class CichlidCache {
 	// pattern is relative to root
-	public static final String IVY_PATTERN = "[revision]/jars/[module]-[revision].[ext]";
 	public static final String MINECRAFT_GROUP = "net.minecraft";
 	public static final Set<String> MINECRAFT_MODULES = Set.of(
 			"minecraft-client", "minecraft-server", "minecraft-merged", "minecraft-bundler"

@@ -1,6 +1,7 @@
 package io.github.cichlidmc.cichlid_gradle.extension.repo;
 
 import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
+import io.github.cichlidmc.cichlid_gradle.cache.mcmaven.MinecraftMaven;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
@@ -9,7 +10,7 @@ import org.gradle.api.plugins.ExtensionAware;
 
 import java.net.URI;
 
-public class MinecraftReposExtension {
+public final class MinecraftReposExtension {
     public static final URI LIBRARIES_URL = URI.create("https://libraries.minecraft.net/");
 
     private final Project project;
@@ -42,7 +43,6 @@ public class MinecraftReposExtension {
     }
 
     public void versions() {
-        CichlidCache cache = CichlidCache.get(this.project);
         RepositoryHandler repos = this.project.getRepositories();
 
         repos.exclusiveContent(exclusive -> {
@@ -52,12 +52,13 @@ public class MinecraftReposExtension {
 						module -> contents.includeModule(CichlidCache.MINECRAFT_GROUP, module)
 				);
 			});
-            exclusive.forRepository(() -> repos.ivy(repo -> {
+
+            exclusive.forRepository(() -> repos.maven(repo -> {
                 repo.setName("Minecraft Versions");
-                repo.setUrl(cache.root);
-                repo.patternLayout(layout -> {
-                    layout.ivy(CichlidCache.IVY_PATTERN);
-                    layout.artifact(CichlidCache.IVY_PATTERN);
+                repo.setUrl(MinecraftMaven.ROOT);
+                repo.metadataSources(sources -> {
+                    sources.mavenPom();
+                    sources.ignoreGradleMetadataRedirection();
                 });
 			}));
         });

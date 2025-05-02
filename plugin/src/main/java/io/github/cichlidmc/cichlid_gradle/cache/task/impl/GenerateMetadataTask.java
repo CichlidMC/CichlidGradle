@@ -1,6 +1,5 @@
 package io.github.cichlidmc.cichlid_gradle.cache.task.impl;
 
-import io.github.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import io.github.cichlidmc.cichlid_gradle.cache.storage.JarsStorage;
 import io.github.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import io.github.cichlidmc.cichlid_gradle.cache.task.TaskContext;
@@ -10,14 +9,17 @@ import io.github.cichlidmc.cichlid_gradle.util.XmlBuilder.XmlElement;
 import io.github.cichlidmc.pistonmetaparser.FullVersion;
 import io.github.cichlidmc.pistonmetaparser.rule.Features;
 import io.github.cichlidmc.pistonmetaparser.rule.Rule;
+import io.github.cichlidmc.pistonmetaparser.version.library.Artifact;
+import io.github.cichlidmc.pistonmetaparser.version.library.Classifier;
 import io.github.cichlidmc.pistonmetaparser.version.library.Library;
+import io.github.cichlidmc.pistonmetaparser.version.library.Natives;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 public class GenerateMetadataTask extends CacheTask {
 	private final Distribution dist;
@@ -25,7 +27,7 @@ public class GenerateMetadataTask extends CacheTask {
 	private final FullVersion version;
 
 	protected GenerateMetadataTask(TaskContext context, Distribution dist, JarsStorage storage, FullVersion version) {
-		super("Generate " + dist + " metadata", "Generate Ivy metadata for the " + dist, context);
+		super("Generate " + dist + " metadata", "Generate Maven metadata for the " + dist, context);
 		this.dist = dist;
 		this.storage = storage;
 		this.version = version;
@@ -33,57 +35,56 @@ public class GenerateMetadataTask extends CacheTask {
 
 	@Override
 	protected void doRun() throws IOException {
-		String module = "minecraft-" + this.dist;
 		Path output = this.storage.metadata(this.dist);
 
-		XmlBuilder.create().add(
-				new XmlElement("ivy-module", Map.of(
-						"version", "2.0",
-						"xmlns:m", "http://ant.apache.org/ivy/maven"
-				), List.of(
-						new XmlElement("info", Map.of(
-								"organisation", CichlidCache.MINECRAFT_GROUP,
-								"module", module,
-								"revision", this.version.id
-						)),
-						new XmlElement("dependencies", this.makeDependencyElements())
-				))
-		).write(output);
+		XmlBuilder.create().add(new XmlElement("project", List.of(
+				new XmlElement("modelVersion", "4.0.0"),
+				new XmlElement("groupId", "net.minecraft"),
+				new XmlElement("artifactId", "minecraft-" + this.dist),
+				new XmlElement("version", this.version.id),
+				new XmlElement("dependencies", this.version.libraries.stream().flatMap(this::makeDependencyElements).toList())
+		))).write(output);
 	}
 
-	private List<XmlElement> makeDependencyElements() {
-		// bundler needs no dependencies
+	private Stream<XmlElement> makeDependencyElements(Library library) {
+		// bundler does not have dependencies
 		if (this.dist == Distribution.BUNDLER)
-			return List.of();
+			return Stream.empty();
+
+		// check rules first
+		if (!Rule.test(library.rules, Features.EMPTY))
+			return Stream.empty();
 
 		List<XmlElement> elements = new ArrayList<>();
-
-		for (Library library : this.version.libraries) {
-			if (!Rule.test(library.rules, Features.EMPTY))
-				continue;
-
-			elements.add(makeDependencyElement(library.name));
+		Optional<Artifact> artifact = library.artifact;
+		if (artifact.isPresent()) {
+			elements.add(makeDependencyXml(library.name));
 		}
 
-		return elements;
+		Optional<Classifier> classifier = library.natives.flatMap(Natives::choose);
+		if (classifier.isPresent()) {
+			String notation = library.name + ':' + classifier.get().name;
+			elements.add(makeDependencyXml(notation));
+		}
+
+		if (elements.isEmpty()) {
+			throw new IllegalStateException("Library has nothing to download: " + library);
+		}
+
+		return elements.stream();
 	}
 
-	private static XmlElement makeDependencyElement(String notation) {
+	private static XmlElement makeDependencyXml(String notation) {
 		String[] split = notation.split(":");
-
-		Map<String, String> attributes = new HashMap<>();
-		attributes.put("org", split[0]);
-		attributes.put("name", split[1]);
-		attributes.put("rev", split[2]);
-
-		String classifier = split.length == 4 ? split[3] : null;
-		List<XmlElement> children = classifier == null ? List.of() : List.of(new XmlElement("artifact", Map.of(
-				"name", split[1],
-				"type", "jar",
-				"ext", "jar",
-				"m:classifier", classifier
+		XmlElement element = new XmlElement("dependency", new ArrayList<>(List.of(
+				new XmlElement("groupId", split[0]),
+				new XmlElement("artifactId", split[1]),
+				new XmlElement("version", split[2]),
+				new XmlElement("scope", "compile")
 		)));
-
-		return new XmlElement("dependency", attributes, children);
+		if (split.length > 3) {
+			element.children().add(new XmlElement("classifier", split[3]));
+		}
+		return element;
 	}
 }

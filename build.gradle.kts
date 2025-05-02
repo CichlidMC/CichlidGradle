@@ -17,7 +17,10 @@ repositories {
 val mcVer = "1.21.5"
 
 dependencies {
-    implementation(minecraft.client(mcVer))
+    implementation(minecraft.of {
+        client()
+        version(mcVer)
+    })
 
     compileOnly(cichlid.api("0.3.2"))
     cichlidRuntime(cichlid.runtime("0.3.2"))
@@ -43,5 +46,27 @@ cichlid {
 //            version = minecraftVersion
 //            jvmArg("-Dmixin.debug.export=true")
 //        }
+    }
+}
+
+tasks.register("resolveCompileSources") {
+    val view = configurations.compileClasspath.get().incoming.artifactView {
+       componentFilter {
+           it.displayName.contains("minecraft")
+       }
+
+        withVariantReselection()
+
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
+        }
+    }.artifacts
+
+    doLast {
+        view.artifactFiles.forEach {
+            println(it)
+        }
     }
 }

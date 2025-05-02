@@ -1,5 +1,6 @@
 package io.github.cichlidmc.cichlid_gradle_test;
 
+import net.minecraft.BlockUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.SplashManager;
 import net.minecraft.core.Registry;

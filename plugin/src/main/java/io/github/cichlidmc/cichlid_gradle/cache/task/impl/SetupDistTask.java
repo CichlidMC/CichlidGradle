@@ -10,6 +10,8 @@ import io.github.cichlidmc.pistonmetaparser.FullVersion;
 import io.github.cichlidmc.pistonmetaparser.version.download.Download;
 import io.github.cichlidmc.pistonmetaparser.version.download.Downloads;
 import net.neoforged.art.api.Renamer;
+import net.neoforged.art.api.SignatureStripperConfig;
+import net.neoforged.art.api.SourceFixerConfig;
 import net.neoforged.art.api.Transformer;
 import net.neoforged.srgutils.IMappingFile;
 
@@ -74,8 +76,17 @@ public class SetupDistTask extends CacheTask {
 		List<String> log = new ArrayList<>();
 		// mojmap is distributed named -> obf, reverse it
 		IMappingFile loadedMappings = IMappingFile.load(mappings.toFile()).reverse();
-		Transformer.Factory transformer = Transformer.renamerFactory(loadedMappings, false);
-		try (Renamer renamer = Renamer.builder().logger(log::add).add(transformer).build()) {
+
+		Renamer.Builder builder = Renamer.builder();
+		builder.logger(log::add);
+		builder.add(Transformer.renamerFactory(loadedMappings, false));
+		builder.add(Transformer.sourceFixerFactory(SourceFixerConfig.JAVA));
+		builder.add(Transformer.recordFixerFactory());
+		builder.add(Transformer.parameterAnnotationFixerFactory());
+		builder.add(Transformer.parameterFinalFlagRemoverFactory());
+		builder.add(Transformer.signatureStripperFactory(SignatureStripperConfig.ALL));
+
+		try (Renamer renamer = builder.build()) {
 			renamer.run(tempJar.toFile(), jar.toFile());
 		}
 
@@ -83,7 +94,6 @@ public class SetupDistTask extends CacheTask {
 		Path logFile = this.storage.mappings.log(this.dist);
 		Files.writeString(logFile, String.join("\n", log));
 		Files.delete(tempJar);
-		FileUtils.removeJarSignatures(jar);
 
 		if (this.dist == Distribution.SERVER) {
 			// do this after remapping, so the real jar is present
