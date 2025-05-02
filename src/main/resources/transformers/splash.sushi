@@ -8,6 +8,6 @@
       "expect": 2
     },
     "point": "tail",
-    "hook": "io.github.cichlidmc.cichlid_gradle_test.Hooks.fish"
+    "hook": "fish.cichlidmc.cichlid_gradle_test.Hooks.fish"
   }
 }

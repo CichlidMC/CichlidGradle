@@ -6,6 +6,6 @@
       "name": "<clinit>"
     },
     "point": "tail",
-    "hook": "io.github.cichlidmc.cichlid_gradle_test.Hooks.registerItems"
+    "hook": "fish.cichlidmc.cichlid_gradle_test.Hooks.registerItems"
   }
 }

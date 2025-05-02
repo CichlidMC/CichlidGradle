@@ -1,15 +1,15 @@
 plugins {
     id("java")
-    id("io.github.cichlidmc.cichlid_gradle")
+    id("fish.cichlidmc.cichlid-gradle")
     id("maven-publish")
 }
 
-group = "io.github.cichlidmc"
+group = "fish.cichlidmc"
 version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
-    cichlid.snapshots()
+    cichlid.releases()
     minecraft.libraries()
     minecraft.versions()
 }

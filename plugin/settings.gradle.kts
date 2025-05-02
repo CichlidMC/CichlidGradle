@@ -1,4 +1,4 @@
-rootProject.name = "CichlidGradle"
+rootProject.name = "cichlid-gradle"
 enableFeaturePreview("STABLE_CONFIGURATION_CACHE")
 
 pluginManagement {
