@@ -1,6 +1,10 @@
 package fish.cichlidmc.cichlid_gradle.cache.mcmaven;
 
 import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
+import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinition;
+import org.gradle.api.InvalidUserDataException;
+import org.gradle.api.NamedDomainObjectContainer;
+import org.gradle.api.Project;
 import org.gradle.api.internal.artifacts.repositories.transport.RepositoryTransportFactory;
 import org.gradle.authentication.Authentication;
 import org.gradle.internal.resource.connector.ResourceConnectorFactory;
@@ -9,21 +13,26 @@ import org.gradle.internal.resource.transfer.DefaultExternalResourceConnector;
 import org.gradle.internal.resource.transfer.ExternalResourceConnector;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public final class McMavenConnectorFactory implements ResourceConnectorFactory {
-	public static final Set<String> PROTOCOLS = Set.of(MinecraftMaven.PROTOCOL);
+	public final String protocol;
+	private final ExternalResourceConnector connector;
 
-	private final CichlidCache cache;
-
-	public McMavenConnectorFactory(CichlidCache cache) {
-		this.cache = cache;
+	public McMavenConnectorFactory(String protocol, MinecraftMaven mcMaven) {
+		this.protocol = protocol;
+		this.connector = new DefaultExternalResourceConnector(
+				new McMavenResourceAccessor(mcMaven),
+				NoOpResourceLister.INSTANCE,
+				NoOpUploader.INSTANCE
+		);
 	}
 
 	@Override
 	public Set<String> getSupportedProtocols() {
-		return PROTOCOLS;
+		return Set.of(this.protocol);
 	}
 
 	@Override
@@ -33,27 +42,45 @@ public final class McMavenConnectorFactory implements ResourceConnectorFactory {
 
 	@Override
 	public ExternalResourceConnector createResourceConnector(ResourceConnectorSpecification connectionDetails) {
-		return new DefaultExternalResourceConnector(
-				new McMavenResourceAccessor(this.cache),
-				NoOpResourceLister.INSTANCE,
-				NoOpUploader.INSTANCE
-		);
+		return this.connector;
 	}
 
 	// built-in implementations use ServiceLoader, but that only works for Gradle modules.
-	public static void inject(RepositoryTransportFactory factory, CichlidCache cache) {
+	// a new one is registered for each project anyway. Each has a unique protocol based on project path.
+	public static void inject(RepositoryTransportFactory factory, Project project) {
+		List<ResourceConnectorFactory> list = extractFactories(factory);
+		Set<String> protocols = collectProtocols(list);
+
+		String protocol = MinecraftMaven.createProtocol(project);
+		if (protocols.contains(protocol)) {
+			throw new InvalidUserDataException("Multiple projects generate the URI protocol '" + protocol + "', including " + project.getPath());
+		}
+
+		CichlidCache cache = CichlidCache.get(project);
+		NamedDomainObjectContainer<MinecraftDefinition> defs = MinecraftDefinition.getExtension(project);
+		MinecraftMaven mcMaven = new MinecraftMaven(defs, cache);
+
+		list.add(new McMavenConnectorFactory(protocol, mcMaven));
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<ResourceConnectorFactory> extractFactories(RepositoryTransportFactory factory) {
 		try {
 			Field registeredProtocols = RepositoryTransportFactory.class.getDeclaredField("registeredProtocols");
 			registeredProtocols.setAccessible(true);
-			@SuppressWarnings("unchecked")
-			List<ResourceConnectorFactory> list = (List<ResourceConnectorFactory>) registeredProtocols.get(factory);
-			// don't add if it already exists
-			if (list.stream().anyMatch(f -> f instanceof McMavenConnectorFactory))
-				return;
-
-			list.add(new McMavenConnectorFactory(cache));
-		} catch (ReflectiveOperationException e) {
+			return (List<ResourceConnectorFactory>) registeredProtocols.get(factory);
+		} catch (ReflectiveOperationException | ClassCastException e) {
 			throw new RuntimeException("Error accessing Gradle internals! You probably need to update Gradle, CichlidGradle, or both", e);
 		}
+	}
+
+	private static Set<String> collectProtocols(List<ResourceConnectorFactory> factories) {
+		Set<String> protocols = new HashSet<>();
+		for (ResourceConnectorFactory factory : factories) {
+			if (factory instanceof McMavenConnectorFactory mcMavenFactory) {
+				protocols.add(mcMavenFactory.protocol);
+			}
+		}
+		return protocols;
 	}
 }

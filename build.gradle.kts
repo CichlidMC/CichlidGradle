@@ -14,13 +14,15 @@ repositories {
     minecraft.versions()
 }
 
-val mcVer = "1.21.5"
+val mc by minecraft.creating {
+    version = "1.21.5"
+}
 
 dependencies {
-    implementation(minecraft.of {
-        client()
-        version(mcVer)
-    })
+    println("adding dependencies")
+    mc.transformer(fileTree("src/main/resources/transformers"))
+
+    implementation(mc.dependency)
 
     compileOnly(cichlid.api("0.3.2"))
     cichlidRuntime(cichlid.runtime("0.3.2"))
@@ -28,9 +30,9 @@ dependencies {
 
 cichlid {
     runs {
-        register("client") {
-            version = mcVer
-        }
+//        register("client") {
+//            version = mcVer
+//        }
 //        register("client 1.21.4") {
 //            version = "1.21.4"
 //            template = "client"

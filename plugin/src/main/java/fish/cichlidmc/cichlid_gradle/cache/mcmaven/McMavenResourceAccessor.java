@@ -1,6 +1,5 @@
 package fish.cichlidmc.cichlid_gradle.cache.mcmaven;
 
-import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import fish.cichlidmc.cichlid_gradle.util.FileUtils;
 import org.gradle.api.resources.ResourceException;
 import org.gradle.internal.hash.HashCode;
@@ -22,8 +21,8 @@ import java.util.Date;
 public final class McMavenResourceAccessor implements ExternalResourceAccessor {
 	private final MinecraftMaven mcMaven;
 
-	public McMavenResourceAccessor(CichlidCache cache) {
-		this.mcMaven = new MinecraftMaven(cache);
+	public McMavenResourceAccessor(MinecraftMaven mcMaven) {
+		this.mcMaven = mcMaven;
 	}
 
 	@Nullable

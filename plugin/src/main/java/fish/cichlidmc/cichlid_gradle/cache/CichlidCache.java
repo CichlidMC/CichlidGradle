@@ -6,10 +6,10 @@ import fish.cichlidmc.cichlid_gradle.cache.task.TaskContext;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.pistonmetaparser.manifest.Version;
 import org.gradle.api.Project;
+import org.gradle.api.invocation.Gradle;
 
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Interface for Cichlid's global Minecraft cache. Holds no state, just interfaces with the filesystem.
@@ -37,13 +37,10 @@ import java.util.Set;
  * </ul>
  */
 public final class CichlidCache {
-	// pattern is relative to root
 	public static final String MINECRAFT_GROUP = "net.minecraft";
-	public static final Set<String> MINECRAFT_MODULES = Set.of(
-			"minecraft-client", "minecraft-server", "minecraft-merged", "minecraft-bundler"
-	);
+	public static final String MINECRAFT_MODULE = "minecraft";
 
-	public static final String PROJECT_CACHE_PROPERTY = "cichlid.use_project_cache";
+	public static final String LOCAL_CACHE_PROPERTY = "cichlid.use_local_cache";
 	public static final int FORMAT = 1;
 	public static final String PATH = "cichlid-gradle-cache/v" + FORMAT;
 
@@ -94,10 +91,11 @@ public final class CichlidCache {
 	}
 
 	private static Path getGradleCache(Project project) {
-		if (Objects.equals(project.findProperty(PROJECT_CACHE_PROPERTY), "true")) {
-			return project.file(".gradle").toPath();
+		Gradle gradle = project.getGradle();
+		if (Objects.equals(project.findProperty(LOCAL_CACHE_PROPERTY), "true")) {
+			return gradle.getRootProject().file(".gradle").toPath();
 		} else {
-			return project.getGradle().getGradleUserHomeDir().toPath().resolve("caches");
+			return gradle.getGradleUserHomeDir().toPath().resolve("caches");
 		}
 	}
 }

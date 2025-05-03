@@ -1,6 +1,7 @@
 package fish.cichlidmc.cichlid_gradle.extension.repo;
 
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
 import org.gradle.api.plugins.ExtensionAware;
 
 import java.net.URI;
@@ -16,16 +17,16 @@ public final class CichlidReposExtension {
         this.project = project;
     }
 
-    public void releases() {
-        this.project.getRepositories().maven(repo -> {
+    public MavenArtifactRepository releases() {
+        return this.project.getRepositories().maven(repo -> {
             repo.setName("Cichlid Releases");
             repo.setUrl(DEVOS_RELEASES);
             repo.content(content -> content.includeGroupAndSubgroups("fish.cichlidmc"));
         });
     }
 
-    public void snapshots() {
-        this.project.getRepositories().maven(repo -> {
+    public MavenArtifactRepository snapshots() {
+        return this.project.getRepositories().maven(repo -> {
             repo.setName("Cichlid Snapshots");
             repo.setUrl(DEVOS_SNAPSHOTS);
             repo.content(content -> content.includeGroupAndSubgroups("fish.cichlidmc"));

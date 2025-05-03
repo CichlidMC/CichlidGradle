@@ -1,4 +1,4 @@
-rootProject.name = "cichlid-gradle-test"
+rootProject.name = "sub-build-test"
 enableFeaturePreview("STABLE_CONFIGURATION_CACHE")
 
 pluginManagement {
@@ -9,8 +9,5 @@ pluginManagement {
         maven("https://libraries.minecraft.net")
     }
 
-    includeBuild("plugin")
+    includeBuild("../plugin")
 }
-
-//include("subProject")
-//includeBuild("subBuild")

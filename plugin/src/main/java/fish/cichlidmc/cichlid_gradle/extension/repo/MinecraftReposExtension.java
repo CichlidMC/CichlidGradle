@@ -20,48 +20,42 @@ public final class MinecraftReposExtension {
     }
 
     public MavenArtifactRepository libraries() {
-        return this.libraries(repo -> {});
-    }
-
-    public MavenArtifactRepository libraries(Action<? super MavenArtifactRepository> action) {
         RepositoryHandler repos = this.project.getRepositories();
 
-        MavenArtifactRepository libraries = repos.maven(repo -> {
+        MavenArtifactRepository maven = repos.maven(repo -> {
             repo.setName("Minecraft Libraries");
             repo.setUrl(LIBRARIES_URL);
-            action.execute(repo);
         });
 
-        repos.exclusiveContent(exclusive -> exclusive.forRepositories(libraries).filter(contents -> {
+        repos.exclusiveContent(exclusive -> exclusive.forRepositories(maven).filter(contents -> {
             // LWJGL must be gotten from here instead of central
             contents.includeGroup("org.lwjgl");
             // this is the only place mojang libraries are hosted, might as well declare it
             contents.includeGroup("com.mojang");
         }));
 
-        return libraries;
+        return maven;
     }
 
-    public void versions() {
+    public MavenArtifactRepository versions() {
         RepositoryHandler repos = this.project.getRepositories();
+        URI url = URI.create(MinecraftMaven.createProtocol(this.project) + ":///");
 
-        repos.exclusiveContent(exclusive -> {
-            exclusive.filter(contents -> {
-                contents.includeGroup(CichlidCache.MINECRAFT_GROUP);
-				CichlidCache.MINECRAFT_MODULES.forEach(
-						module -> contents.includeModule(CichlidCache.MINECRAFT_GROUP, module)
-				);
-			});
-
-            exclusive.forRepository(() -> repos.maven(repo -> {
-                repo.setName("Minecraft Versions");
-                repo.setUrl(MinecraftMaven.ROOT);
-                repo.metadataSources(sources -> {
-                    sources.mavenPom();
-                    sources.ignoreGradleMetadataRedirection();
-                });
-			}));
+        MavenArtifactRepository maven = repos.maven(repo -> {
+            repo.setName("Minecraft Versions");
+            repo.setUrl(url);
+            repo.metadataSources(sources -> {
+                sources.mavenPom();
+                sources.ignoreGradleMetadataRedirection();
+            });
         });
+
+        repos.exclusiveContent(exclusive -> exclusive.forRepositories(maven).filter(contents -> {
+            contents.includeGroup(CichlidCache.MINECRAFT_GROUP);
+            contents.includeModule(CichlidCache.MINECRAFT_GROUP, CichlidCache.MINECRAFT_MODULE);
+        }));
+
+        return maven;
     }
 
     public static void setup(Project project) {

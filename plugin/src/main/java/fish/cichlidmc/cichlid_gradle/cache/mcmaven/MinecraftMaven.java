@@ -2,11 +2,16 @@ package fish.cichlidmc.cichlid_gradle.cache.mcmaven;
 
 import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import fish.cichlidmc.cichlid_gradle.cache.storage.JarsStorage;
+import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinition;
+import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinitionImpl;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
+import org.gradle.api.NamedDomainObjectContainer;
+import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,21 +23,21 @@ import java.util.regex.Pattern;
  * Provides Minecraft jars and pom files for each version.
  */
 public final class MinecraftMaven {
-	public static final String PROTOCOL = "mcmaven";
-	public static final URI ROOT = URI.create(PROTOCOL + ":///");
 	/**
 	 * Regex for files that could possibly be provided.
 	 */
 	public static final Pattern VALID_FILE = Pattern.compile(
-			// groups:				  |-           1              -| |2 |           |-           3              -| |4 |   |-  5  -|
-			"/net/minecraft/minecraft-(client|server|merged|bundler)/(.+)/minecraft-(client|server|merged|bundler)-(.+)\\.(pom|jar)"
+			// groups:				  |1 |           |2 |   |-  3  -|
+			"/net/minecraft/minecraft/(.+)/minecraft-(.+)\\.(pom|jar)"
 	);
 
 	private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
 
+	private final NamedDomainObjectContainer<MinecraftDefinition> defs;
 	private final CichlidCache cache;
 
-	public MinecraftMaven(CichlidCache cache) {
+	public MinecraftMaven(NamedDomainObjectContainer<MinecraftDefinition> defs, CichlidCache cache) {
+		this.defs = defs;
 		this.cache = cache;
 	}
 
@@ -46,12 +51,27 @@ public final class MinecraftMaven {
 		if (request == null)
 			return null;
 
-		this.cache.ensureVersionIsCached(request.version);
-		JarsStorage storage = this.cache.getVersion(request.version).jars;
+		MinecraftDefinitionImpl def = (MinecraftDefinitionImpl) this.defs.findByName(request.def);
+		if (def == null)
+			return null;
+
+		String version = def.getVersionOrThrow();
+
+		System.out.println("resolving transformers");
+
+		for (File file : def.resolvableTransformers().getIncoming().getFiles()) {
+			logger.quiet("Transformer: {}", file);
+		}
+
+		this.cache.ensureVersionIsCached(version);
+		JarsStorage storage = this.cache.getVersion(version).jars;
+
+		Distribution dist = def.getDistribution().get();
+
 		Path path = switch (request.type) {
-			case JAR -> storage.path(request.dist);
-			case SOURCES -> storage.sources(request.dist);
-			case POM -> storage.metadata(request.dist);
+			case JAR -> storage.path(dist);
+			case SOURCES -> storage.sources(dist);
+			case POM -> storage.metadata(dist);
 		};
 
 		return Files.exists(path) ? path : null;
@@ -63,19 +83,11 @@ public final class MinecraftMaven {
 		if (!matcher.matches())
 			return null;
 
-		// check that both distributions are the same
-		String dist1 = matcher.group(1);
-		String dist2 = matcher.group(3);
-		if (!dist1.equals(dist2))
-			return null;
+		// make sure both versions are the same
+		String version1 = matcher.group(1);
+		String version2 = matcher.group(2);
 
-		Distribution dist = Distribution.ofName(dist1).orElseThrow();
-
-		// make sure the versions match too
-		String version1 = matcher.group(2);
-		String version2 = matcher.group(4);
-
-		// -sources will get caught in group 4 if present, check for it
+		// -sources will get caught in group 2 if present, check for it
 		boolean sources = false;
 		if (version2.endsWith("-sources")) {
 			sources = true;
@@ -85,18 +97,38 @@ public final class MinecraftMaven {
 		if (!version1.equals(version2))
 			return null;
 
-		Request.Type type = switch (matcher.group(5)) {
+		Request.Type type = switch (matcher.group(3)) {
 			case "jar" -> sources ? Request.Type.SOURCES : Request.Type.JAR;
 			case "pom" -> Request.Type.POM;
 			default -> throw new RuntimeException("Invalid Type");
 		};
 
-		logger.debug("Intercepted request for Minecraft {} {}, {}", dist, version1, type);
+		logger.quiet("Intercepted request for Minecraft definition {}, {}", version1, type);
 
-		return new Request(dist, version1, type);
+		return new Request(version1, type);
 	}
 
-	private record Request(Distribution dist, String version, Type type) {
+	public static String createProtocol(Project project) {
+		if (project.getParent() == null)
+			return "mcmaven";
+
+		StringBuilder builder = new StringBuilder("mcmaven-");
+		// :path:to:project
+		String path = project.getPath();
+		// start at 1 to skip leading :
+		for (int i = 1; i < path.length(); i++) {
+			builder.append(filterChar(path.charAt(i)));
+		}
+
+		return builder.toString();
+	}
+
+	private static char filterChar(char c) {
+		//     a-z                       A-Z                       0-9                       special cases: + - .
+		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '+' || c == '-' || c == '.') ? c : '-';
+	}
+
+	private record Request(String def, Type type) {
 		private enum Type {
 			JAR, SOURCES, POM
 		}
