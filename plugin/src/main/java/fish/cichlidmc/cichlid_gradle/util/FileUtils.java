@@ -6,18 +6,24 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLConnection;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
 public class FileUtils {
+    public static final Comparator<File> FILE_SORTER = Comparator.comparing(File::getName);
+
     private static final Logger logger = Logging.getLogger(FileUtils.class);
 
     public static InputStream openDownloadStream(Downloadable downloadable) throws IOException {
@@ -34,6 +40,22 @@ public class FileUtils {
             MessageDigest messageDigest = Hashes.createDigest("SHA-1");
             byte[] data = Files.readAllBytes(file);
             return Hashes.format(messageDigest.digest(data));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String sha1All(Collection<File> files) {
+        Collection<File> sorted = new TreeSet<>(FILE_SORTER);
+        sorted.addAll(files);
+
+        try {
+            MessageDigest messageDigest = Hashes.createDigest("SHA-1");
+            for (File file : sorted) {
+                byte[] bytes = Files.readAllBytes(file.toPath());
+                messageDigest.update(bytes);
+            }
+            return Hashes.format(messageDigest.digest());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

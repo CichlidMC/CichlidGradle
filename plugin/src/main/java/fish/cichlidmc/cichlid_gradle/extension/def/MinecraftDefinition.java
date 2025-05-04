@@ -4,31 +4,23 @@ import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.DependencyScopeConfiguration;
 import org.gradle.api.artifacts.ExternalModuleDependency;
-import org.gradle.api.artifacts.dsl.DependencyFactory;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 
 public interface MinecraftDefinition extends Named {
 	// specially named properties for DSL
 	Property<String> getVersion();
 	Property<Distribution> getDistribution();
 	DependencyScopeConfiguration getTransformer();
-	ExternalModuleDependency getDependency();
+	Provider<ExternalModuleDependency> getDependency();
 
 	static void setup(Project project) {
-		ObjectFactory objects = project.getObjects();
-		ConfigurationContainer configurations = project.getConfigurations();
-		DependencyFactory depFactory = project.getDependencyFactory();
-
-		NamedDomainObjectContainer<MinecraftDefinition> container = objects.domainObjectContainer(
+		project.getExtensions().add("minecraft", project.getObjects().domainObjectContainer(
 				MinecraftDefinition.class,
-				name -> new MinecraftDefinitionImpl(name, configurations, objects, depFactory)
-		);
-
-		project.getExtensions().add("minecraft", container);
+				name -> new MinecraftDefinitionImpl(name, project)
+		));
 	}
 
 	@SuppressWarnings("unchecked")

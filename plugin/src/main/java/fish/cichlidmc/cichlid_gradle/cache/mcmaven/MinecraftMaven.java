@@ -97,15 +97,22 @@ public final class MinecraftMaven {
 		if (!version1.equals(version2))
 			return null;
 
+		// version is defName_hash, extract the name
+		int underscore = version1.indexOf('_');
+		if (underscore == -1)
+			return null;
+
+		String defName = version1.substring(0, underscore);
+
 		Request.Type type = switch (matcher.group(3)) {
 			case "jar" -> sources ? Request.Type.SOURCES : Request.Type.JAR;
 			case "pom" -> Request.Type.POM;
 			default -> throw new RuntimeException("Invalid Type");
 		};
 
-		logger.quiet("Intercepted request for Minecraft definition {}, {}", version1, type);
+		logger.quiet("Intercepted request for Minecraft definition {}, {}", defName, type);
 
-		return new Request(version1, type);
+		return new Request(defName, type);
 	}
 
 	public static String createProtocol(Project project) {
