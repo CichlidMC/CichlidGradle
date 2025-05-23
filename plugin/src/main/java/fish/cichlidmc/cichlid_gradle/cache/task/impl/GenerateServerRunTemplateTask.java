@@ -2,7 +2,7 @@ package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
 import fish.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
-import fish.cichlidmc.cichlid_gradle.cache.task.TaskContext;
+import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.run.RunTemplate;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 
@@ -15,7 +15,7 @@ import java.util.jar.JarFile;
 public class GenerateServerRunTemplateTask extends CacheTask {
 	private final VersionStorage storage;
 
-	protected GenerateServerRunTemplateTask(TaskContext context, VersionStorage storage) {
+	protected GenerateServerRunTemplateTask(CacheTaskEnvironment env, VersionStorage storage) {
 		super("ServerRunTemplate", "Generate the server run config template", context);
 		this.storage = storage;
 	}

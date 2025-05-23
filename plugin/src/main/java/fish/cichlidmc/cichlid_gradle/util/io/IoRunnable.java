@@ -1,4 +1,4 @@
-package fish.cichlidmc.cichlid_gradle.util;
+package fish.cichlidmc.cichlid_gradle.util.io;
 
 import java.io.IOException;
 

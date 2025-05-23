@@ -1,19 +1,15 @@
 package fish.cichlidmc.cichlid_gradle.util;
 
+import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
+import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
+import fish.cichlidmc.cichlid_gradle.cache.task.impl.DecompileTask;
+
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
 
 public enum Distribution {
-    CLIENT, SERVER,
-    /**
-     * Merged client + server jar
-     */
-    MERGED,
-    /**
-     * Modern server jars are bundled into a different jar alongside libraries. This is that jar.
-     */
-    BUNDLER;
+    CLIENT, SERVER, MERGED;
 
     public final String name = this.name().toLowerCase(Locale.ROOT);
 
@@ -22,20 +18,26 @@ public enum Distribution {
         return this.name;
     }
 
-    public boolean isSpecial() {
-        return this == MERGED || this == BUNDLER;
+    public boolean needsAssets() {
+        return this == CLIENT || this == MERGED;
     }
 
     public <T> T choose(T client, T server) {
-        return this.choose(() -> client, () -> server);
+        return switch (this) {
+            case CLIENT -> client;
+            case SERVER -> server;
+            case MERGED -> throw new IllegalStateException("Cannot call choose(client, server) on MERGED");
+        };
     }
 
     public <T> T choose(Supplier<T> client, Supplier<T> server) {
+        return this.<Supplier<T>>choose(client, server).get();
+    }
+
+    public CacheTask createSetupTask(CacheTaskEnvironment env) {
         return switch (this) {
-            case CLIENT -> client.get();
-            case SERVER -> server.get();
-            case MERGED, BUNDLER -> throw new IllegalStateException();
-        };
+
+        }
     }
 
     public static Optional<Distribution> ofName(String name) {

@@ -3,10 +3,12 @@ package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 import fish.cichlidmc.cichlid_gradle.cache.storage.AssetStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.LockableStorage;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
-import fish.cichlidmc.cichlid_gradle.cache.task.TaskContext;
-import fish.cichlidmc.cichlid_gradle.util.Download;
-import fish.cichlidmc.cichlid_gradle.util.DownloadBatch;
-import fish.cichlidmc.cichlid_gradle.util.FileUtils;
+import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
+import fish.cichlidmc.cichlid_gradle.util.io.Download;
+import fish.cichlidmc.cichlid_gradle.util.io.DownloadBatch;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
+import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import fish.cichlidmc.pistonmetaparser.version.assets.Asset;
 import fish.cichlidmc.pistonmetaparser.version.assets.AssetIndex;
 import fish.cichlidmc.pistonmetaparser.version.assets.FullAssetIndex;
@@ -19,27 +21,27 @@ import java.nio.file.Path;
 import java.util.Map;
 
 public class AssetsTask extends CacheTask {
-	private final AssetStorage storage;
-	private final AssetIndex index;
-
 	private LockableStorage.Lock lock;
 
-	public AssetsTask(TaskContext context, AssetStorage storage, AssetIndex index) {
-		super("Assets", "Downloading asset index " + index.id, context);
-		this.storage = storage;
-		this.index = index;
+	public AssetsTask(CacheTaskEnvironment env) {
+		super("Download asset index " + env.version.assets, env);
 	}
 
 	@Override
 	public void doRun() throws IOException {
-		this.lock = this.storage.lock();
-		if (this.storage.isComplete(this.index))
+		AssetStorage assets = this.env.cache.assets;
+		this.lock = assets.lockLoudly("Assets are currently locked by {}, awaiting release");
+		// see if it's done now
+		AssetIndex index = this.env.version.assetIndex;
+		if (assets.isComplete(index)) {
+			this.logger.quiet("Asset index {} is now cached.", index.id);
 			return;
+		}
 
-		this.logger.quiet("Asset index {} is not cached, downloading", this.index.id);
+		this.logger.quiet("Asset index {} is not cached, downloading", index.id);
 
-		Path indexFile = this.storage.index(this.index);
-		new Download(this.index, indexFile).run();
+		Path indexFile = assets.index(index);
+		new Download(index, indexFile).run();
 		// read downloaded file to avoid downloading again with expand()
 		JsonValue indexJson = TinyJson.parse(indexFile);
 		FullAssetIndex fullIndex = FullAssetIndex.parse(indexJson);
@@ -47,23 +49,26 @@ public class AssetsTask extends CacheTask {
 
 		DownloadBatch.Builder builder = new DownloadBatch.Builder();
 		for (Asset asset : fullIndex.objects.values()) {
-			Path dest = this.storage.object(asset);
+			Path dest = assets.object(asset);
 			if (this.shouldDownload(asset, dest)) {
 				builder.download(asset, dest);
 			}
 		}
-		builder.build().execute();
 
-		if (fullIndex.isVirtual()) {
-			this.logger.quiet("Extracting virtual assets");
-			this.extractVirtualAssets(this.index, fullIndex);
-		}
+		this.logger.quiet("Downloading {} asset objects...", builder.size());
+
+		builder.build().execute();
 
 		long endTime = System.currentTimeMillis();
 		long seconds = (endTime - startTime) / 1000;
-		logger.quiet("Finished downloading assets in {} seconds.", seconds);
+		this.logger.quiet("Finished downloading assets in {} seconds.", seconds);
 
-		this.storage.markComplete(this.index);
+		if (fullIndex.isVirtual()) {
+			this.logger.quiet("Extracting virtual assets");
+			this.extractVirtualAssets(index, fullIndex);
+		}
+
+		assets.markComplete(index);
 	}
 
 	@Override
@@ -74,12 +79,12 @@ public class AssetsTask extends CacheTask {
 	}
 
 	private void extractVirtualAssets(AssetIndex index, FullAssetIndex fullIndex) throws IOException {
-		Path dir = this.storage.extractLocation(index);
+		Path dir = this.env.cache.assets.extractLocation(index);
 		for (Map.Entry<String, Asset> entry : fullIndex.objects.entrySet()) {
 			String path = entry.getKey();
 			Asset asset = entry.getValue();
 			Path dest = dir.resolve(path);
-			Path src = this.storage.object(asset);
+			Path src = this.env.cache.assets.object(asset);
 			FileUtils.copy(src, dest);
 		}
 	}
@@ -95,8 +100,8 @@ public class AssetsTask extends CacheTask {
 			return true;
 		}
 
-		String existingHash = FileUtils.sha1(dest);
-		if (!asset.hash.endsWith(existingHash)) {
+		String existingHash = Encoding.HEX.encode(HashAlgorithm.SHA1.hash(dest));
+		if (!asset.hash.equals(existingHash)) {
 			this.logger.warn("Found an existing asset that has changed hashes: {}. Bad download? Overwriting.", asset.path);
 			return true;
 		}

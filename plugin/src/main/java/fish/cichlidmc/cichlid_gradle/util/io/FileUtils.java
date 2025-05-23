@@ -1,4 +1,4 @@
-package fish.cichlidmc.cichlid_gradle.util;
+package fish.cichlidmc.cichlid_gradle.util.io;
 
 import fish.cichlidmc.cichlid_gradle.CichlidGradlePlugin;
 import fish.cichlidmc.pistonmetaparser.util.Downloadable;
@@ -12,17 +12,14 @@ import java.io.InputStream;
 import java.net.URLConnection;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.security.MessageDigest;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
 public class FileUtils {
-    public static final Comparator<File> FILE_SORTER = Comparator.comparing(File::getName);
+    public static final Comparator<File> FILE_COMPARATOR_BY_NAME = Comparator.comparing(File::getName);
 
     private static final Logger logger = Logging.getLogger(FileUtils.class);
 
@@ -33,32 +30,6 @@ public class FileUtils {
         if (downloadable.size() != length)
             throw new RuntimeException("Downloaded file size of " + length + " did not match expected size of " + downloadable.size());
         return connection.getInputStream();
-    }
-
-    public static String sha1(Path file) {
-        try {
-            MessageDigest messageDigest = Hashes.createDigest("SHA-1");
-            byte[] data = Files.readAllBytes(file);
-            return Hashes.format(messageDigest.digest(data));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static String sha1All(Collection<File> files) {
-        Collection<File> sorted = new TreeSet<>(FILE_SORTER);
-        sorted.addAll(files);
-
-        try {
-            MessageDigest messageDigest = Hashes.createDigest("SHA-1");
-            for (File file : sorted) {
-                byte[] bytes = Files.readAllBytes(file.toPath());
-                messageDigest.update(bytes);
-            }
-            return Hashes.format(messageDigest.digest());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public static void ensureCreated(Path file) throws IOException {

@@ -8,15 +8,13 @@ import java.io.UncheckedIOException;
 
 public abstract class CacheTask implements Runnable {
 	public final String name;
-	public final String description;
 
-	protected final TaskContext context;
+	protected final CacheTaskEnvironment env;
 	protected final Logger logger;
 
-	protected CacheTask(String name, String description, TaskContext context) {
+	protected CacheTask(String name, CacheTaskEnvironment env) {
 		this.name = name;
-		this.description = description;
-		this.context = context;
+		this.env = env;
 		this.logger = Logging.getLogger(this.getClass());
 	}
 

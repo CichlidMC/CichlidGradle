@@ -1,7 +1,7 @@
 package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
-import fish.cichlidmc.cichlid_gradle.cache.task.TaskContext;
+import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.Utils;
 import org.jetbrains.java.decompiler.main.Fernflower;
@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,24 +29,23 @@ public final class DecompileTask extends CacheTask {
 		return Collections.unmodifiableMap(preferences);
 	});
 
-	private final Path jar;
-
-	public DecompileTask(TaskContext context, Distribution dist, Path jar) {
-		super("Decompile " + dist, "Decompiling " + dist, context);
-		this.jar = jar;
+	public DecompileTask(CacheTaskEnvironment env) {
+		super("Decompile " + env.dist, env);
 	}
 
 	@Override
 	protected void doRun() throws IOException {
-		String outputName = this.jar.getFileName().toString().replace(".jar", "-sources.jar");
-		Path output = this.jar.resolveSibling(outputName);
+		Path input = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.transformers.hash(), this.env.dist);
+		if (!Files.exists(input)) {
+			this.env.submitAndAwait(null);
+		}
 
 		closeVineflowerFilesystem();
 
-		IResultSaver saver = new SingleFileSaver(output.toFile());
+		IResultSaver saver = new SingleFileSaver(this.output.toFile());
 		Fernflower decompiler = new Fernflower(saver, PREFERENCES, IFernflowerLogger.NO_OP);
 		try {
-			decompiler.addSource(this.jar.toFile());
+			decompiler.addSource(this.input.toFile());
 			decompiler.decompileContext();
 			decompiler.clearContext();
 		} catch (Throwable t) {
@@ -59,6 +59,7 @@ public final class DecompileTask extends CacheTask {
 		// close it now to avoid an ugly useless error later.
 
 		try {
+			// this is copied and pasted from JarPluginLoader
 			File vfJar = new File(JarPluginLoader.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 			if (vfJar.exists() && !vfJar.isDirectory() && vfJar.getPath().endsWith(".jar")) {
 				URI uri = URI.create("jar:" + vfJar.toURI());

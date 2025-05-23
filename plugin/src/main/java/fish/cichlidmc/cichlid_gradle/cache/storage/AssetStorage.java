@@ -1,8 +1,6 @@
 package fish.cichlidmc.cichlid_gradle.cache.storage;
 
-import fish.cichlidmc.cichlid_gradle.cache.task.TaskContext;
-import fish.cichlidmc.cichlid_gradle.cache.task.impl.AssetsTask;
-import fish.cichlidmc.cichlid_gradle.util.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import fish.cichlidmc.pistonmetaparser.version.assets.Asset;
 import fish.cichlidmc.pistonmetaparser.version.assets.AssetIndex;
 
@@ -16,11 +14,6 @@ import java.nio.file.Path;
 public class AssetStorage extends LockableStorage {
 	public AssetStorage(Path root) {
 		super(root);
-	}
-
-	public void submitInitialTasks(AssetIndex index, TaskContext context) {
-		AssetsTask task = new AssetsTask(context, this, index);
-		context.submitSilently(task);
 	}
 
 	public Path index(AssetIndex index) {

@@ -4,6 +4,7 @@ import fish.cichlidmc.cichlid_gradle.util.IterableStream;
 import fish.cichlidmc.distmarker.Dist;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -51,6 +52,14 @@ public class MergeSource {
                 String subPathKey = key.isEmpty() ? dirName : key + '/' + dirName;
                 walk(subpath, subPathKey, entries);
             }
+        }
+    }
+
+    public static MergeSource createUnchecked(Dist dist, Path path) {
+        try {
+            return new MergeSource(dist, path);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 }

@@ -1,7 +1,9 @@
 package fish.cichlidmc.cichlid_gradle.extension.def;
 
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
-import fish.cichlidmc.cichlid_gradle.util.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
+import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Project;
@@ -14,6 +16,11 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Set;
+import java.util.TreeSet;
+
 public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 	private final String name;
 	private final NamedDomainObjectProvider<DependencyScopeConfiguration> depTransformers;
@@ -25,6 +32,10 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 	private final Provider<ExternalModuleDependency> dependency;
 
 	public MinecraftDefinitionImpl(String name, Project project) {
+		if (name.contains("$")) {
+			throw new InvalidUserDataException("Minecraft definition names may not contain '$'");
+		}
+
 		this.name = name;
 
 		ConfigurationContainer configurations = project.getConfigurations();
@@ -42,10 +53,9 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 		this.distribution.finalizeValueOnRead();
 
 		DependencyFactory depFactory = project.getDependencyFactory();
-		this.dependency = project.getProviders().provider(() -> {
-			String hash = FileUtils.sha1All(this.resolvableTransformers().getIncoming().getFiles().getFiles());
-			return depFactory.create("net.minecraft", "minecraft", name + '_' + hash.substring(0, 10));
-		});
+		this.dependency = project.getProviders().provider(
+				() -> depFactory.create("net.minecraft", "minecraft", name + '$' + this.hashTransformers())
+		);
 	}
 
 	@Override
@@ -81,7 +91,19 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 		throw new InvalidUserDataException("Minecraft definition '" + this.name + "' does not have a version specified");
 	}
 
+	public Distribution dist() {
+		return this.distribution.get();
+	}
+
 	public ResolvableConfiguration resolvableTransformers() {
 		return this.resolvableTransformers.get();
+	}
+
+	private String hashTransformers() throws IOException {
+		Set<File> files = this.resolvableTransformers().getIncoming().getFiles().getFiles();
+		Set<File> sorted = new TreeSet<>(FileUtils.FILE_COMPARATOR_BY_NAME);
+		sorted.addAll(files);
+
+		return Encoding.BASE_FUNNY.encode(HashAlgorithm.SHA256.hashFiles(sorted));
 	}
 }

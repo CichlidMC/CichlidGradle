@@ -1,12 +1,15 @@
 package fish.cichlidmc.cichlid_gradle.cache;
 
 import fish.cichlidmc.cichlid_gradle.cache.storage.AssetStorage;
+import fish.cichlidmc.cichlid_gradle.cache.storage.DecompiledClassStorage;
+import fish.cichlidmc.cichlid_gradle.cache.storage.PomTemplateStorage;
+import fish.cichlidmc.cichlid_gradle.cache.storage.ReassembledJarStorage;
+import fish.cichlidmc.cichlid_gradle.cache.storage.TransformedClassStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
-import fish.cichlidmc.cichlid_gradle.cache.task.TaskContext;
-import fish.cichlidmc.pistonmetaparser.FullVersion;
-import fish.cichlidmc.pistonmetaparser.manifest.Version;
 import org.gradle.api.Project;
 import org.gradle.api.invocation.Gradle;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 
 import java.nio.file.Path;
 import java.util.Objects;
@@ -14,67 +17,32 @@ import java.util.Objects;
 /**
  * Interface for Cichlid's global Minecraft cache. Holds no state, just interfaces with the filesystem.
  * Layout is versioned, and each one can be found at {@code "root/v" + FORMAT}.
- * <p>
- * Layout:
- * <ul>
- *     <li>
- *         assets
- *         <ul>
- *             <li>indices</li>
- *             <li>objects</li>
- *             <li>.lock</li>
- *         </ul>
- *     </li>
- *     <li>
- *         $version
- *         <ul>
- *             <li>natives</li>
- *             <li>mappings</li>
- *             <li>jars</li>
- *             <li>runs</li>
- *         </ul>
- *     </li>
- * </ul>
  */
 public final class CichlidCache {
-	public static final String MINECRAFT_GROUP = "net.minecraft";
-	public static final String MINECRAFT_MODULE = "minecraft";
-
 	public static final String LOCAL_CACHE_PROPERTY = "cichlid.use_local_cache";
 	public static final int FORMAT = 1;
 	public static final String PATH = "cichlid-gradle-cache/v" + FORMAT;
 
+	private static final Logger logger = Logging.getLogger(CichlidCache.class);
+
 	public final Path root;
-	// assets are shared by many versions, they're stored separately
 	public final AssetStorage assets;
+	public final ReassembledJarStorage reassembledJars;
+	public final DecompiledClassStorage decompiledClasses;
+	public final TransformedClassStorage transformedClasses;
+	public final PomTemplateStorage pomTemplates;
 
 	private CichlidCache(Path root) {
 		this.root = root;
-		this.assets = new AssetStorage(this.root.resolve("assets"));
+		this.assets = new AssetStorage(root.resolve("assets"));
+		this.reassembledJars = new ReassembledJarStorage(root.resolve("reassembled"));
+		this.decompiledClasses = new DecompiledClassStorage(root.resolve("decompiled"));
+		this.transformedClasses = new TransformedClassStorage(root.resolve("transformed"));
+		this.pomTemplates = new PomTemplateStorage(root.resolve("poms"));
 	}
 
 	public VersionStorage getVersion(String version) {
-		return new VersionStorage(this.root.resolve(version), version);
-	}
-
-	public void ensureVersionIsCached(String versionId) {
-		// see if this version actually exists
-		Version version = ManifestCache.getVersion(versionId);
-		if (version == null)
-			return;
-
-		FullVersion fullVersion = ManifestCache.expand(version);
-
-		TaskContext ctx = new TaskContext();
-		this.assets.submitInitialTasks(fullVersion.assetIndex, ctx);
-
-		VersionStorage storage = this.getVersion(versionId);
-		storage.submitInitialTasks(fullVersion, ctx);
-
-		ctx.report();
-
-		// all tasks are done. If an exception wasn't thrown by report, everything was successful.
-		storage.markComplete();
+		return new VersionStorage(this.root.resolve("versions").resolve(version), version);
 	}
 
 	public static CichlidCache get(Project project) {

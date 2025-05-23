@@ -1,4 +1,4 @@
-package fish.cichlidmc.cichlid_gradle.util;
+package fish.cichlidmc.cichlid_gradle.util.io;
 
 import fish.cichlidmc.pistonmetaparser.util.Downloadable;
 
@@ -23,8 +23,12 @@ public record DownloadBatch(List<Download> downloads) {
             return this;
         }
 
+        public int size() {
+            return this.downloads.size();
+        }
+
         public DownloadBatch build() {
-            return new DownloadBatch(downloads);
+            return new DownloadBatch(this.downloads);
         }
     }
 }

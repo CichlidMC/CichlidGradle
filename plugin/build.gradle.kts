@@ -21,6 +21,13 @@ dependencies {
     implementation("net.neoforged:AutoRenamingTool:2.0.3")
     implementation("org.ow2.asm:asm-tree:9.7")
     implementation("org.vineflower:vineflower:1.11.1")
+
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
 }
 
 tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar::class) {

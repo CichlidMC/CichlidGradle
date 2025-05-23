@@ -1,6 +1,6 @@
 package fish.cichlidmc.cichlid_gradle.merge;
 
-import fish.cichlidmc.cichlid_gradle.util.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import fish.cichlidmc.distmarker.Dist;
 
 import java.io.IOException;

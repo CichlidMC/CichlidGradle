@@ -1,8 +1,6 @@
 package fish.cichlidmc.cichlid_gradle.extension.repo;
 
-import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import fish.cichlidmc.cichlid_gradle.cache.mcmaven.MinecraftMaven;
-import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
@@ -51,8 +49,8 @@ public final class MinecraftReposExtension {
         });
 
         repos.exclusiveContent(exclusive -> exclusive.forRepositories(maven).filter(contents -> {
-            contents.includeGroup(CichlidCache.MINECRAFT_GROUP);
-            contents.includeModule(CichlidCache.MINECRAFT_GROUP, CichlidCache.MINECRAFT_MODULE);
+            contents.includeGroup(MinecraftMaven.GROUP);
+            contents.includeModule(MinecraftMaven.GROUP, MinecraftMaven.MODULE);
         }));
 
         return maven;

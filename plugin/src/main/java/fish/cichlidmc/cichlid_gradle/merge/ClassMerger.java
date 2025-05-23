@@ -3,7 +3,7 @@ package fish.cichlidmc.cichlid_gradle.merge;
 import fish.cichlidmc.cichlid_gradle.merge.element.FieldMerger;
 import fish.cichlidmc.cichlid_gradle.merge.element.InterfacesMerger;
 import fish.cichlidmc.cichlid_gradle.merge.element.MethodMerger;
-import fish.cichlidmc.cichlid_gradle.util.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import fish.cichlidmc.distmarker.Dist;
 import fish.cichlidmc.distmarker.Distribution;
 import org.objectweb.asm.*;
