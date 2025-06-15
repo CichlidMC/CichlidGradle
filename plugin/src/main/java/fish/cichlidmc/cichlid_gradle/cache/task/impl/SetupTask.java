@@ -6,7 +6,7 @@ import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.io.DownloadBatch;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
-import fish.cichlidmc.pistonmetaparser.FullVersion;
+import fish.cichlidmc.distmarker.Dist;
 import fish.cichlidmc.pistonmetaparser.version.download.Download;
 import fish.cichlidmc.pistonmetaparser.version.download.Downloads;
 import net.neoforged.art.api.Renamer;
@@ -22,50 +22,44 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.jar.JarFile;
 
 public class SetupTask extends CacheTask {
 	public SetupTask(CacheTaskEnvironment env) {
-		super("Setup " + dist, "Setup " + version.id + " - " + dist, context);
-		this.dist = dist;
-		this.storage = storage;
-		this.version = version;
-		if (dist.isSpecial()) {
-			throw new IllegalArgumentException("Invalid distribution: " + dist);
+		super("Setup " + env.dist, env);
+
+		if (env.dist == Distribution.MERGED) {
+			throw new IllegalArgumentException("Cannot create a SetupTask for MERGED");
 		}
 	}
 
 	@Override
 	protected void doRun() throws IOException {
-		if (this.dist == Distribution.CLIENT) {
-			this.context.submit(new GenerateClientRunTemplateTask(this.context, this.storage.runs, this.version));
-			this.context.submit(new ExtractNativesTask(this.context, this.storage.natives, this.version));
+		if (this.env.dist == Distribution.CLIENT) {
+			// this.context.submit(new GenerateClientRunTemplateTask(this.context, this.storage.runs, this.version));
+			this.env.submit(ExtractNativesTask::new);
 		}
 
-		this.context.submit(new GenerateMetadataTask(this.context, this.dist, this.storage.jars, this.version));
+		Downloads downloads = this.env.version.downloads;
+		Download jarDownload = this.env.dist.choose(() -> downloads.client, downloads.server::get);
+		// shouldn't throw since this is checked before even starting
+		Download mappingsDownload = this.env.dist.choose(downloads.clientMappings, downloads.serverMappings).orElseThrow();
 
-		Downloads downloads = this.version.downloads;
-		Download jarDownload = this.dist.choose(() -> downloads.client, downloads.server::get);
-		Optional<Download> mappingsDownload = this.dist.choose(downloads.clientMappings, downloads.serverMappings);
+		VersionStorage storage = this.env.cache.getVersion(this.env.version.id);
 
-		if (mappingsDownload.isEmpty()) {
-			throw new IllegalArgumentException("Support for versions without mojmap is not yet implemented.");
-		}
-
+		Path jar = storage.jars.get(this.env.dist);
 		// jar goes to a temp file first for remapping
-		Path tempJar = this.storage.jars.temp(this.dist);
-		Path jar = this.storage.jars.path(this.dist);
-		Path mappings = this.storage.mappings.path(this.dist);
+		Path tempJar = FileUtils.createTempFile(jar);
+		Path mappings = storage.mappings.path(this.env.dist);
 
 		new DownloadBatch.Builder()
 				.download(jarDownload, tempJar)
-				.download(mappingsDownload.get(), mappings)
+				.download(mappingsDownload, mappings)
 				.build()
 				.execute();
 
-		if (this.dist == Distribution.SERVER) {
-			this.tryUnbundle(tempJar);
+		if (this.env.dist == Distribution.SERVER) {
+			this.tryUnbundle(tempJar, storage);
 		}
 
 		// remap
@@ -87,19 +81,17 @@ public class SetupTask extends CacheTask {
 		}
 
 		// save remapping log, just in case it's important later
-		Path logFile = this.storage.mappings.log(this.dist);
+		Path logFile = storage.mappings.log(this.env.dist);
 		Files.writeString(logFile, String.join("\n", log));
 		Files.delete(tempJar);
 
-		if (this.dist == Distribution.SERVER) {
+		if (this.env.dist == Distribution.SERVER) {
 			// do this after remapping, so the real jar is present
-			this.context.submit(new GenerateServerRunTemplateTask(this.context, this.storage));
+			// this.context.submit(new GenerateServerRunTemplateTask(this.context, this.storage));
 		}
-
-		this.context.submit(new DecompileTask(this.context, this.dist, jar));
 	}
 
-	private void tryUnbundle(Path serverTempJar) throws IOException {
+	private void tryUnbundle(Path serverTempJar, VersionStorage storage) throws IOException {
 		try (JarFile jarFile = new JarFile(serverTempJar.toFile())) {
 			String format = jarFile.getManifest().getMainAttributes().getValue("Bundler-Format");
 			if (format == null)
@@ -110,10 +102,8 @@ public class SetupTask extends CacheTask {
 			}
 		}
 
-		this.context.submit(new GenerateMetadataTask(this.context, Distribution.BUNDLER, this.storage.jars, this.version));
-
 		// move bundler to it's correct location
-		Path bundler = this.storage.jars.path(Distribution.BUNDLER);
+		Path bundler = storage.jars.get(Dist.BUNDLER);
 		Files.createDirectories(bundler.getParent());
 		Files.move(serverTempJar, bundler);
 
@@ -130,7 +120,5 @@ public class SetupTask extends CacheTask {
 			// copy server to its correct location
 			Files.copy(realServer, serverTempJar);
 		}
-
-		this.context.submit(new DecompileTask(this.context, Distribution.BUNDLER, bundler));
 	}
 }

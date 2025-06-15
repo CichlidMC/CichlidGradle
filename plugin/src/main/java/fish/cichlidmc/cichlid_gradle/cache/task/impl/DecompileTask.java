@@ -1,11 +1,11 @@
 package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
+import fish.cichlidmc.cichlid_gradle.cache.mcmaven.JarProcessor;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
-import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.Utils;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import org.jetbrains.java.decompiler.main.Fernflower;
-import org.jetbrains.java.decompiler.main.decompiler.SingleFileSaver;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerPreferences;
 import org.jetbrains.java.decompiler.main.extern.IResultSaver;
@@ -36,20 +36,26 @@ public final class DecompileTask extends CacheTask {
 	@Override
 	protected void doRun() throws IOException {
 		Path input = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.transformers.hash(), this.env.dist);
+
 		if (!Files.exists(input)) {
-			this.env.submitAndAwait(null);
+			this.env.submitAndAwait(ReassembleBinaryTask::new);
 		}
 
+		FileUtils.assertExists(input);
 		closeVineflowerFilesystem();
 
-		IResultSaver saver = new SingleFileSaver(this.output.toFile());
-		Fernflower decompiler = new Fernflower(saver, PREFERENCES, IFernflowerLogger.NO_OP);
-		try {
-			decompiler.addSource(this.input.toFile());
+		try (FileSystem fs = FileSystems.newFileSystem(input)) {
+			Path root = Utils.getOnly(fs.getRootDirectories());
+			Map<String, JarProcessor.ClassGroup> groups = JarProcessor.collectInput(root).groups();
+
+			IResultSaver saver = new CacheResultSaver(this.env.cache.decompiledClasses, groups);
+			Fernflower decompiler = new Fernflower(saver, PREFERENCES, IFernflowerLogger.NO_OP);
+
+			decompiler.addSource(input.toFile());
 			decompiler.decompileContext();
 			decompiler.clearContext();
 		} catch (Throwable t) {
-			t.printStackTrace();
+			this.logger.error("Error while decompiling", t);
 		}
 	}
 

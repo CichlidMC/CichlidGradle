@@ -42,7 +42,7 @@ public final class CichlidCache {
 	}
 
 	public VersionStorage getVersion(String version) {
-		return new VersionStorage(this.root.resolve("versions").resolve(version), version);
+		return new VersionStorage(this.root.resolve("versions").resolve(version));
 	}
 
 	public static CichlidCache get(Project project) {

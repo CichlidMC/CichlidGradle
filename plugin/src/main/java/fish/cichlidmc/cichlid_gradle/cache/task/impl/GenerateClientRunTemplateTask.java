@@ -9,19 +9,19 @@ import fish.cichlidmc.pistonmetaparser.FullVersion;
 
 import java.io.IOException;
 
-public class GenerateClientRunTemplateTask extends CacheTask {
-	private final RunTemplateStorage storage;
-	private final FullVersion version;
-
-	protected GenerateClientRunTemplateTask(CacheTaskEnvironment env, RunTemplateStorage storage, FullVersion version) {
-		super("ClientRunTemplate", "Generate the client run config template", context);
-		this.storage = storage;
-		this.version = version;
-	}
-
-	@Override
-	protected void doRun() throws IOException {
-		RunTemplate template = ClientRunTemplateGenerator.generate(this.version);
-		this.storage.writeRun(this.version.id, "client", template);
-	}
-}
+// public class GenerateClientRunTemplateTask extends CacheTask {
+// 	private final RunTemplateStorage storage;
+// 	private final FullVersion version;
+//
+// 	protected GenerateClientRunTemplateTask(CacheTaskEnvironment env) {
+// 		super("ClientRunTemplate", env);
+// 		this.storage = storage;
+// 		this.version = version;
+// 	}
+//
+// 	@Override
+// 	protected void doRun() throws IOException {
+// 		RunTemplate template = ClientRunTemplateGenerator.generate(this.version);
+// 		this.storage.writeRun(this.version.id, "client", template);
+// 	}
+// }

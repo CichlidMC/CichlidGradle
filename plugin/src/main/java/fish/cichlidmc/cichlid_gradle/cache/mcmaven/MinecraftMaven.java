@@ -6,11 +6,13 @@ import fish.cichlidmc.cichlid_gradle.cache.ManifestCache;
 import fish.cichlidmc.cichlid_gradle.cache.Transformers;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.AssetsTask;
-import fish.cichlidmc.cichlid_gradle.cache.task.impl.DecompileTask;
-import fish.cichlidmc.cichlid_gradle.cache.task.impl.ReassembleTask;
+import fish.cichlidmc.cichlid_gradle.cache.task.impl.ReassembleBinaryTask;
+import fish.cichlidmc.cichlid_gradle.cache.task.impl.ReassembleSourcesTask;
 import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinition;
 import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinitionImpl;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
+import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
+import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.pistonmetaparser.manifest.Version;
 import org.gradle.api.InvalidUserDataException;
@@ -28,6 +30,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,8 +46,8 @@ public final class MinecraftMaven {
 	 * Regex for files that could possibly be provided.
 	 */
 	public static final Pattern VALID_FILE = Pattern.compile(
-			// groups:				  |1 |           |2 |   |-  3  -|
-			"/net/minecraft/minecraft/(.+)/minecraft-(.+)\\.(pom|jar)"
+			// groups:				  |1 |           |2 |   |-  3  -||-           4            -|
+			"/net/minecraft/minecraft/(.+)/minecraft-(.+)\\.(pom|jar)(.md5|.sha1|.sha256|.sha512)?"
 	);
 
 	private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
@@ -73,8 +76,15 @@ public final class MinecraftMaven {
 		Iterable<File> transformerFiles = def.resolvableTransformers().getIncoming().getFiles();
 		Transformers transformers = new Transformers(transformerFiles, request.hash);
 
-		return this.getArtifact(version, def.dist(), transformers, request);
+		InputStream stream = this.getArtifact(version, def.dist(), transformers, request);
+		if (stream == null || request.hashAlgorithm.isEmpty())
+			return stream;
+
+		HashAlgorithm hashAlgorithm = request.hashAlgorithm.get();
+		String hash = Encoding.HEX.encode(hashAlgorithm.hash(stream.readAllBytes()));
+		return new ByteArrayInputStream(hash.getBytes(StandardCharsets.UTF_8));
 	}
+
 
 	@Nullable
 	private InputStream getArtifact(String versionId, Distribution dist, Transformers transformers, Request request) throws IOException {
@@ -111,7 +121,10 @@ public final class MinecraftMaven {
 		}
 
 		if (needsJar) {
-			builder.add(env -> new ReassembleTask(env, request.artifact == Artifact.SOURCES));
+			switch (request.artifact) {
+				case JAR -> builder.add(ReassembleBinaryTask::new);
+				case SOURCES -> builder.add(ReassembleSourcesTask::new);
+			}
 		}
 
 		builder.start().report();
@@ -169,9 +182,22 @@ public final class MinecraftMaven {
 		if (artifact == null)
 			return null;
 
-		logger.quiet("Intercepted request for Minecraft definition {}, {}", defName, artifact);
+		HashAlgorithm hashAlgorithm;
+		switch (matcher.group(4)) {
+			case ".md5" -> hashAlgorithm = HashAlgorithm.MD5;
+			case ".sha1" -> hashAlgorithm = HashAlgorithm.SHA1;
+			case ".sha256" -> hashAlgorithm = HashAlgorithm.SHA256;
+			case ".sha512" -> hashAlgorithm = HashAlgorithm.SHA512;
+			case null -> hashAlgorithm = null;
+			default -> {
+				// when invalid, don't process it at all
+				return null;
+			}
+		}
 
-		return new Request(defName, hash, artifact);
+		logger.quiet("Intercepted request for Minecraft definition {}, {}, {}", defName, artifact, hashAlgorithm);
+
+		return new Request(defName, hash, artifact, Optional.ofNullable(hashAlgorithm));
 	}
 
 	public static String createProtocol(Project project) {
@@ -194,7 +220,7 @@ public final class MinecraftMaven {
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '+' || c == '-' || c == '.') ? c : '-';
 	}
 
-	private record Request(String def, String hash, Artifact artifact) {
+	private record Request(String def, String hash, Artifact artifact, Optional<HashAlgorithm> hashAlgorithm) {
 		// the version specified in the pom needs to match what gradle requested exactly (defName$hash) or it'll be rejected
 		private String gradleRequestedVersion() {
 			return this.def + '$' + this.hash;

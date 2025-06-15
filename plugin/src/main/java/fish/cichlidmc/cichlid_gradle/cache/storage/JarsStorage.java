@@ -1,5 +1,6 @@
 package fish.cichlidmc.cichlid_gradle.cache.storage;
 
+import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.distmarker.Dist;
 
 import java.nio.file.Path;
@@ -15,6 +16,10 @@ public class JarsStorage {
     public Path get(Dist dist) {
         String name = dist.name().toLowerCase(Locale.ROOT);
         return this.root.resolve(name + ".jar");
+    }
+
+    public Path get(Distribution dist) {
+        return this.root.resolve(dist.name + ".jar");
     }
 
     public Path merged() {

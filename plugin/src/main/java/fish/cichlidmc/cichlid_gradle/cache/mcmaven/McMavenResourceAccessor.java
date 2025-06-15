@@ -1,5 +1,7 @@
 package fish.cichlidmc.cichlid_gradle.cache.mcmaven;
 
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.gradle.api.resources.ResourceException;
 import org.gradle.internal.resource.ExternalResource;
 import org.gradle.internal.resource.ExternalResourceName;
@@ -13,6 +15,8 @@ import java.io.InputStream;
 import java.net.URI;
 
 public final class McMavenResourceAccessor implements ExternalResourceAccessor {
+	private static final Logger logger = Logging.getLogger(McMavenResourceAccessor.class);
+
 	private final MinecraftMaven mcMaven;
 
 	public McMavenResourceAccessor(MinecraftMaven mcMaven) {
@@ -28,11 +32,15 @@ public final class McMavenResourceAccessor implements ExternalResourceAccessor {
 
 		try {
 			InputStream stream = this.mcMaven.get(uri);
-			if (stream == null)
+			if (stream == null) {
+				System.out.println("nope :( " + uri);
 				return null;
+			}
 
+			System.out.println("yep :)");
 			return action.execute(stream, this.getMetaData(location, revalidate));
 		} catch (Exception e) {
+			logger.error("Error while getting URL from mcmaven: {}", uri, e);
 			throw ResourceExceptions.getFailed(uri, e);
 		}
 	}
@@ -46,6 +54,7 @@ public final class McMavenResourceAccessor implements ExternalResourceAccessor {
 		try {
 			return this.mcMaven.get(uri) == null ? null : new DefaultExternalResourceMetaData(uri, -1, -1);
 		} catch (Exception e) {
+			logger.error("Error while getting URL from mcmaven: {}", uri, e);
 			throw ResourceExceptions.getFailed(uri, e);
 		}
 	}

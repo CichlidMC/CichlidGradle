@@ -35,7 +35,7 @@ public abstract class LockableStorage {
 	protected LockableStorage(Path root) {
 		this.root = root;
 		this.lockFile = root.resolve(LOCK_FILE);
-		this.lock = locks.computeIfAbsent(this.root.toAbsolutePath(), _ -> new ReentrantLock());
+		this.lock = locks.computeIfAbsent(this.root.toAbsolutePath(), $ -> new ReentrantLock());
 	}
 
 	/**

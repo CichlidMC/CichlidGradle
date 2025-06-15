@@ -23,8 +23,8 @@ public final class PomGenerator {
 		XmlBuilder.create().add(new XmlBuilder.XmlElement("project", List.of(
 				new XmlBuilder.XmlElement("modelVersion", "4.0.0"),
 				new XmlBuilder.XmlElement("groupId", "net.minecraft"),
-				new XmlBuilder.XmlElement("artifactId", VERSION_PLACEHOLDER),
-				new XmlBuilder.XmlElement("version", version.id),
+				new XmlBuilder.XmlElement("artifactId", "minecraft"),
+				new XmlBuilder.XmlElement("version", VERSION_PLACEHOLDER),
 				new XmlBuilder.XmlElement("dependencies", version.libraries.stream().flatMap(PomGenerator::makeDependencyElements).toList())
 		))).write(output);
 	}

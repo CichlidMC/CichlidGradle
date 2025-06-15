@@ -7,6 +7,7 @@ import org.gradle.api.logging.Logging;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLConnection;
@@ -17,8 +18,10 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
+import java.util.zip.ZipOutputStream;
 
 public class FileUtils {
+    public static final Comparator<Path> PATH_COMPARATOR_BY_NAME = Comparator.comparing(path -> path.getFileName().toString());
     public static final Comparator<File> FILE_COMPARATOR_BY_NAME = Comparator.comparing(File::getName);
 
     private static final Logger logger = Logging.getLogger(FileUtils.class);
@@ -40,6 +43,12 @@ public class FileUtils {
                 Files.createDirectories(folder);
             }
             Files.createFile(file);
+        }
+    }
+
+    public static void assertExists(Path path) throws FileNotFoundException {
+        if (!Files.exists(path)) {
+            throw new FileNotFoundException(path.toString());
         }
     }
 
@@ -147,5 +156,13 @@ public class FileUtils {
         Path dir = target.getParent();
         Files.createDirectories(dir);
         return Files.createTempDirectory(dir, target.getFileName().toString());
+    }
+
+    public static void initEmptyZip(Path path) throws IOException {
+        // gradle breaks creation FileOpenOptions, need to manually set up the jar
+        ensureCreated(path);
+        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
+            out.finish();
+        }
     }
 }

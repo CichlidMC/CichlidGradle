@@ -17,11 +17,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import java.util.zip.ZipOutputStream;
 
 public class JarMerger {
     public static void merge(List<MergeSource> sources, Path output) throws IOException {
-        initEmptyZip(output);
+        FileUtils.initEmptyZip(output);
 
         try (FileSystem merged = FileSystems.newFileSystem(output)) {
             Set<String> entries = new HashSet<>();
@@ -95,13 +94,5 @@ public class JarMerger {
             }
         }
         return true;
-    }
-
-    private static void initEmptyZip(Path path) throws IOException {
-        // gradle breaks creation FileOpenOptions, need to manually set up the jar
-        FileUtils.ensureCreated(path);
-        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
-            out.finish();
-        }
     }
 }

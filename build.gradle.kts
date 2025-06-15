@@ -1,3 +1,5 @@
+import fish.cichlidmc.cichlid_gradle.util.Distribution
+
 plugins {
     id("java")
     id("fish.cichlidmc.cichlid-gradle")
@@ -16,6 +18,7 @@ repositories {
 
 val mc by minecraft.creating {
     version = "1.21.5"
+    distribution = Distribution.CLIENT
 }
 
 dependencies {

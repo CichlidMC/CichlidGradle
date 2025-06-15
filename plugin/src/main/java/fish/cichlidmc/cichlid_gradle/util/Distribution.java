@@ -3,6 +3,8 @@ package fish.cichlidmc.cichlid_gradle.util;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.DecompileTask;
+import fish.cichlidmc.cichlid_gradle.cache.task.impl.MergeTask;
+import fish.cichlidmc.cichlid_gradle.cache.task.impl.SetupTask;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -35,9 +37,7 @@ public enum Distribution {
     }
 
     public CacheTask createSetupTask(CacheTaskEnvironment env) {
-        return switch (this) {
-
-        }
+        return this == MERGED ? new MergeTask(env) : new SetupTask(env);
     }
 
     public static Optional<Distribution> ofName(String name) {

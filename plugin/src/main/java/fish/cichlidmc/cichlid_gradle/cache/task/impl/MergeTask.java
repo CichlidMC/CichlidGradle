@@ -5,6 +5,7 @@ import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.merge.JarMerger;
 import fish.cichlidmc.cichlid_gradle.merge.MergeSource;
+import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.distmarker.Dist;
 
 import java.io.IOException;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class MergeTask extends CacheTask {
-	protected MergeTask(CacheTaskEnvironment env) {
+	public MergeTask(CacheTaskEnvironment env) {
 		super("Merge", env);
 	}
 
@@ -30,11 +31,28 @@ public class MergeTask extends CacheTask {
 			if (Files.exists(jar)) {
 				futures.add(CompletableFuture.completedFuture(new MergeSource(dist, jar)));
 			} else {
-				futures.add(this.env.submit(null).thenApply(_ -> MergeSource.createUnchecked(dist, jar)));
+				Distribution distribution = switch (dist) {
+					case CLIENT -> Distribution.CLIENT;
+					case SERVER -> Distribution.SERVER;
+					default -> null;
+				};
+
+				if (distribution != null) {
+					CacheTaskEnvironment env = this.environmentFor(distribution);
+					futures.add(env.submit(SetupTask::new).thenApply($ -> MergeSource.createUnchecked(dist, jar)));
+				}
 			}
 		}
 
 		List<MergeSource> sources = futures.stream().map(CompletableFuture::join).toList();
 		JarMerger.merge(sources, jars.merged());
+	}
+
+	private CacheTaskEnvironment environmentFor(Distribution dist) {
+		if (this.env.dist == dist) {
+			return this.env;
+		} else {
+			return new CacheTaskEnvironment(this.env.version, this.env.cache, dist, this.env.transformers);
+		}
 	}
 }
