@@ -1,7 +1,7 @@
 package fish.cichlidmc.cichlid_gradle_test;
 
-import net.minecraft.BlockUtil;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.main.Main;
 import net.minecraft.client.resources.SplashManager;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -15,6 +15,7 @@ import java.util.List;
 
 public final class Hooks {
 	public static void fish() {
+		Main.class.getName();
 		SplashManager manager = Minecraft.getInstance().getSplashManager();
 		try {
 			Field field = manager.getClass().getDeclaredField("splashes");

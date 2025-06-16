@@ -21,7 +21,7 @@ public class MergeTask extends CacheTask {
 	}
 
 	@Override
-	protected void doRun() throws IOException {
+	protected String run() throws IOException {
 		JarsStorage jars = this.env.cache.getVersion(this.env.version.id).jars;
 
 		List<CompletableFuture<MergeSource>> futures = new ArrayList<>();
@@ -45,7 +45,8 @@ public class MergeTask extends CacheTask {
 		}
 
 		List<MergeSource> sources = futures.stream().map(CompletableFuture::join).toList();
-		JarMerger.merge(sources, jars.merged());
+		JarMerger.merge(sources, jars.get(Distribution.MERGED));
+		return null;
 	}
 
 	private CacheTaskEnvironment environmentFor(Distribution dist) {

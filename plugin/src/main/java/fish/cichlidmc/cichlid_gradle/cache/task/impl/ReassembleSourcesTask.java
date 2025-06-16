@@ -17,7 +17,7 @@ public final class ReassembleSourcesTask extends CacheTask {
 	}
 
 	@Override
-	protected void doRun() throws IOException {
+	protected String run() throws IOException {
 		Path output = this.env.cache.reassembledJars.sources(this.env.version.id, this.env.transformers.hash(), this.env.dist);
 		Path binary = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.transformers.hash(), this.env.dist);
 		if (!Files.exists(binary)) {
@@ -27,8 +27,8 @@ public final class ReassembleSourcesTask extends CacheTask {
 		}
 
 		JarProcessor.run(binary, output, this::getDecompiled);
+		return null;
 	}
-
 
 	private JarProcessor.ClassGroup getDecompiled(JarProcessor.ClassGroup group) throws IOException {
 		String hash = group.hash();

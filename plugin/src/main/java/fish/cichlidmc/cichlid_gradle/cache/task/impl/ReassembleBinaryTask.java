@@ -6,6 +6,7 @@ import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.util.Utils;
 import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
 import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,16 +20,18 @@ public final class ReassembleBinaryTask extends CacheTask {
 	}
 
 	@Override
-	protected void doRun() throws IOException {
+	protected String run() throws IOException {
 		Path input = this.env.cache.getVersion(this.env.version.id).jars.get(this.env.dist);
 
 		if (!Files.exists(input)) {
 			this.env.submitAndAwait(this.env.dist::createSetupTask);
 		}
 
+		FileUtils.assertExists(input);
 		Path output = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.transformers.hash(), this.env.dist);
 
 		JarProcessor.run(input, output, this::transform);
+		return null;
 	}
 
 	private JarProcessor.ClassGroup transform(JarProcessor.ClassGroup group) throws IOException {

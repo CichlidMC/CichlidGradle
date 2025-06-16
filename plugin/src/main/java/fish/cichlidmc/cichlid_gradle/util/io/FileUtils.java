@@ -11,9 +11,17 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLConnection;
-import java.nio.file.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.jar.JarFile;
@@ -50,6 +58,21 @@ public class FileUtils {
         if (!Files.exists(path)) {
             throw new FileNotFoundException(path.toString());
         }
+    }
+
+    public static Path getSingleRoot(FileSystem fs) {
+        Iterator<Path> iterator = fs.getRootDirectories().iterator();
+        if (!iterator.hasNext()) {
+            throw new IllegalStateException("FileSystem has no root: " + fs);
+        }
+
+        Path root = iterator.next();
+
+        if (iterator.hasNext()) {
+            throw new IllegalStateException("FileSystem has multiple roots: " + fs);
+        }
+
+        return root;
     }
 
     @Nullable

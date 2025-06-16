@@ -13,7 +13,26 @@ import java.util.Map;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
-public record CacheResultSaver(DecompiledClassStorage storage, Map<String, JarProcessor.ClassGroup> groups) implements IResultSaver {
+public final class CacheResultSaver implements IResultSaver {
+	private final DecompiledClassStorage storage;
+	private final Map<String, JarProcessor.ClassGroup> groups;
+
+	private int totalClasses;
+	private int savedClasses;
+
+	public CacheResultSaver(DecompiledClassStorage storage, Map<String, JarProcessor.ClassGroup> groups) {
+		this.storage = storage;
+		this.groups = groups;
+	}
+
+	public int totalClasses() {
+		return this.totalClasses;
+	}
+
+	public int savedClasses() {
+		return this.savedClasses;
+	}
+
 	@Override
 	public void saveClassEntry(String path, String archiveName, String qualifiedName, String entryName, String content, int[] mapping) {
 		JarProcessor.ClassGroup group = this.groups.get(qualifiedName);
@@ -24,8 +43,18 @@ public record CacheResultSaver(DecompiledClassStorage storage, Map<String, JarPr
 		try {
 			String hash = group.hash();
 			Path output = this.storage.get(hash);
+
+			// this method might be called asynchronously by VF
+			synchronized (this) {
+				this.totalClasses++;
+			}
+
 			if (Files.exists(output))
 				return;
+
+			synchronized (this) {
+				this.savedClasses++;
+			}
 
 			FileUtils.ensureCreated(output);
 			Files.writeString(output, content);
@@ -35,7 +64,7 @@ public record CacheResultSaver(DecompiledClassStorage storage, Map<String, JarPr
 				FileUtils.ensureCreated(linemap);
 				String string = Arrays.stream(mapping)
 						.mapToObj(String::valueOf)
-						.collect(Collectors.joining("\n"));
+						.collect(Collectors.joining(","));
 
 				Files.writeString(linemap, string);
 			}

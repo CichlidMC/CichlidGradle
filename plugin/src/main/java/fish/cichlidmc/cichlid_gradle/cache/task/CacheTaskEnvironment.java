@@ -4,8 +4,10 @@ import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import fish.cichlidmc.cichlid_gradle.cache.Transformers;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
+import fish.cichlidmc.tinycodecs.util.Either;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,9 +26,9 @@ public class CacheTaskEnvironment {
 	public final Distribution dist;
 	public final Transformers transformers;
 
-	private final Map<CacheTask, CompletableFuture<Void>> futures = Collections.synchronizedMap(new IdentityHashMap<>());
-	private final Set<CacheTask> incompleteTasks = Collections.synchronizedSet(new HashSet<>());
-	private final Map<CacheTask, Throwable> errors = Collections.synchronizedMap(new IdentityHashMap<>());
+	private final Map<CacheTask.Runner, CompletableFuture<Void>> futures = Collections.synchronizedMap(new IdentityHashMap<>());
+	private final Set<CacheTask.Runner> incompleteTasks = Collections.synchronizedSet(new HashSet<>());
+	private final Map<CacheTask.Runner, Throwable> errors = Collections.synchronizedMap(new IdentityHashMap<>());
 
 	public CacheTaskEnvironment(FullVersion version, CichlidCache cache, Distribution dist, Transformers transformers) {
 		this.version = version;
@@ -46,23 +48,25 @@ public class CacheTaskEnvironment {
 	public CompletableFuture<Void> submit(CacheTask task) {
 		logger.quiet("Starting new task: {}", task.name);
 
-		CompletableFuture<Void> future = CompletableFuture.runAsync(task)
-				.thenRun(() -> this.finishTask(task))
+		CacheTask.Runner runner = new CacheTask.Runner(task);
+		this.incompleteTasks.add(runner);
+
+		CompletableFuture<Void> future = CompletableFuture.supplyAsync(runner)
+				.thenAccept(message -> this.finishTask(runner, Either.left(message)))
 				.exceptionally(error -> {
-					this.finishTask(task);
-					this.errors.put(task, error);
+					this.finishTask(runner, Either.right(error));
 					return null;
 				});
 
-		this.futures.put(task, future);
-		this.incompleteTasks.add(task);
+		this.futures.put(runner, future);
+
 		return future;
 	}
 
 	public void join() {
 		while (!this.incompleteTasks.isEmpty()) {
-			CacheTask task = this.incompleteTasks.iterator().next();
-			CompletableFuture<Void> future = this.futures.get(task);
+			CacheTask.Runner runner = this.incompleteTasks.iterator().next();
+			CompletableFuture<Void> future = this.futures.get(runner);
 			try {
 				future.join();
 			} catch (Throwable ignored) {}
@@ -77,16 +81,30 @@ public class CacheTaskEnvironment {
 			return;
 		}
 
-		RuntimeException root = new RuntimeException("One or more CichlidGradle cache tasks failed!");
+		RuntimeException root = new RuntimeException(this.errors.size() + " CichlidGradle cache task(s) failed!");
 		this.errors.values().forEach(root::addSuppressed);
 
 		logger.error(root.getMessage(), root);
 		throw root;
 	}
 
-	private void finishTask(CacheTask task) {
-		this.incompleteTasks.remove(task);
-		logger.quiet("Task complete: {}", task.name);
+	private void finishTask(CacheTask.Runner runner, Either<@Nullable String, Throwable> result) {
+		this.incompleteTasks.remove(runner);
+
+		if (result.isRight()) {
+			this.errors.put(runner, result.right());
+		}
+
+		String name = runner.task().name;
+		String verb = result.isLeft() ? "finished" : "failed";
+		String seconds = String.format("%.2f", (System.currentTimeMillis() - runner.startTime()) / 1000f);
+		String message = result.isLeft() ? result.left() : result.right().getMessage();
+
+		if (message != null) {
+			logger.quiet("Task '{}' {} after {} seconds: {}", name, verb, seconds, message);
+		} else {
+			logger.quiet("Task '{}' {} after {} seconds", name, verb, seconds);
+		}
 	}
 
 	@FunctionalInterface

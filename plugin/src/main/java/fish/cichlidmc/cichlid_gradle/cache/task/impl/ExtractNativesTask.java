@@ -7,13 +7,12 @@ import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.pistonmetaparser.version.library.Artifact;
 import fish.cichlidmc.pistonmetaparser.version.library.Classifier;
-import fish.cichlidmc.pistonmetaparser.version.library.Library;
 import fish.cichlidmc.pistonmetaparser.version.library.Natives;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
+import java.util.List;
 import java.util.function.Predicate;
 
 public class ExtractNativesTask extends CacheTask {
@@ -31,34 +30,35 @@ public class ExtractNativesTask extends CacheTask {
 	}
 
 	@Override
-	protected void doRun() throws IOException {
+	protected String run() throws IOException {
 		Path output = this.env.cache.getVersion(this.env.version.id).natives;
 		Files.createDirectories(output);
 
-		long startTime = System.currentTimeMillis();
-
-		for (Library library : this.env.version.libraries) {
-			Optional<Classifier> maybeClassifier = library.natives.flatMap(Natives::choose);
-			if (maybeClassifier.isPresent()) {
-				Classifier classifier = maybeClassifier.get();
-				downloadAndExtract(output, classifier.artifact);
-			}
+		List<Classifier> classifiers = getClassifiers(this.env.version);
+		for (Classifier classifier : classifiers) {
+			downloadAndExtract(output, classifier.artifact);
 		}
 
-		long endTime = System.currentTimeMillis();
-		long seconds = (endTime - startTime) / 1000;
-		this.logger.quiet("Finished extracting natives in {} seconds.", seconds);
+		return "Extracted natives from " + classifiers.size() + " jar(s)";
 	}
 
 	// note: rd-20090515 has the exact same jinput dependency twice for some reason, and is probably not the only weird one.
 	// this information isn't really relevant after some refactoring, but it's good to keep it around.
 	private static void downloadAndExtract(Path output, Artifact artifact) throws IOException {
 		Path tempJar = Files.createTempFile(output, TEMP_FILE, ".jar");
-		new Download(artifact, tempJar).run();
 		try {
+			new Download(artifact, tempJar).run();
 			FileUtils.unzip(tempJar, output, FILE_FILTER);
 		} finally {
 			Files.delete(tempJar);
 		}
+	}
+
+	public static boolean shouldRun(FullVersion version) {
+		return !getClassifiers(version).isEmpty();
+	}
+
+	private static List<Classifier> getClassifiers(FullVersion version) {
+		return version.libraries.stream().flatMap(lib -> lib.natives.flatMap(Natives::choose).stream()).toList();
 	}
 }

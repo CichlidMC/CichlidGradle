@@ -3,7 +3,6 @@ package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 import fish.cichlidmc.cichlid_gradle.cache.storage.TransformedClassStorage;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
-import fish.cichlidmc.cichlid_gradle.util.Utils;
 import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
 import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
@@ -29,21 +28,24 @@ public class TransformTask extends CacheTask {
 	}
 
 	@Override
-	protected void doRun() throws IOException {
+	protected String run() throws IOException {
 		Path jar = this.env.cache.getVersion(this.env.version.id).jars.get(this.env.dist);
 		FileUtils.assertExists(jar);
 
 		TransformedClassStorage output = this.env.cache.transformedClasses;
-		TransformerManager manager = this.prepareTransformers();
+		Stats stats = new Stats();
+		TransformerManager manager = this.prepareTransformers(stats);
 
 		try (FileSystem fs = FileSystems.newFileSystem(jar)) {
-			Path root = Utils.getOnly(fs.getRootDirectories());
+			Path root = FileUtils.getSingleRoot(fs);
 			Files.walkFileTree(root, new SimpleFileVisitor<>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					String name = file.getFileName().toString();
 					if (!name.endsWith(".class") || name.endsWith("package-info.class"))
 						return FileVisitResult.CONTINUE;
+
+					stats.totalClasses++;
 
 					byte[] bytes = Files.readAllBytes(file);
 					String hash = Encoding.BASE_FUNNY.encode(HashAlgorithm.SHA256.hash(bytes));
@@ -52,6 +54,8 @@ public class TransformTask extends CacheTask {
 					if (Files.exists(path)) {
 						return FileVisitResult.CONTINUE;
 					}
+
+					stats.transformedClasses++;
 
 					ClassReader reader = new ClassReader(bytes);
 					ClassNode node = new ClassNode();
@@ -69,9 +73,11 @@ public class TransformTask extends CacheTask {
 				}
 			});
 		}
+
+		return stats.toString();
 	}
 
-	private TransformerManager prepareTransformers() {
+	private TransformerManager prepareTransformers(Stats stats) {
 		TransformerManager.Builder builder = TransformerManager.builder();
 
 		builder.parseAndRegister(
@@ -88,9 +94,25 @@ public class TransformTask extends CacheTask {
 			throw new RuntimeException(error);
 		});
 
+		stats.transformers++;
+
 		return builder.build();
 	}
 
 	public interface TestInterfacePleaseIgnore {
+	}
+
+	private static final class Stats {
+		private int transformers;
+		private int totalClasses;
+		private int transformedClasses;
+
+		@Override
+		public String toString() {
+			return String.format(
+					"Transformed %s class(es) with %s transformer(s), %s of which were uncached.",
+					this.totalClasses, this.transformers, this.transformedClasses
+			);
+		}
 	}
 }

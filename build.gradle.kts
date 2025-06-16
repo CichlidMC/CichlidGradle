@@ -22,7 +22,6 @@ val mc by minecraft.creating {
 }
 
 dependencies {
-    println("adding dependencies")
     implementation(mc.dependency)
 
 //    mc.transformer(fileTree("src/main/resources/transformers"))

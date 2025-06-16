@@ -2,10 +2,10 @@ package fish.cichlidmc.cichlid_gradle.util;
 
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
-import fish.cichlidmc.cichlid_gradle.cache.task.impl.DecompileTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.MergeTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.SetupTask;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -14,6 +14,7 @@ public enum Distribution {
     CLIENT, SERVER, MERGED;
 
     public final String name = this.name().toLowerCase(Locale.ROOT);
+    public final byte[] bytes = this.name.getBytes(StandardCharsets.UTF_8);
 
     @Override
     public String toString() {

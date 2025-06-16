@@ -8,7 +8,6 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.function.Supplier;
 
 public final class Utils {
@@ -19,16 +18,6 @@ public final class Utils {
 	@SuppressWarnings("unchecked")
 	public static <T> T get(Field field, Object object) throws IllegalAccessException {
 		return (T) field.get(object);
-	}
-
-	public static <T> T getOnly(Iterable<T> iterable) {
-		Iterator<T> iterator = iterable.iterator();
-		T value = iterator.next();
-		if (iterator.hasNext()) {
-			throw new IllegalStateException("Multiple values present: " + iterable);
-		}
-
-		return value;
 	}
 
 	public static String until(String s, char c) {
@@ -50,6 +39,15 @@ public final class Utils {
 		String first = s.substring(0, i);
 		String second = s.substring(i);
 		return new Pair<>(first, second);
+	}
+
+	public static byte[] bytes(int i) {
+		byte[] array = new byte[4];
+		array[0] = (byte) (i >> 24);
+		array[1] = (byte) (i >> 16);
+		array[2] = (byte) (i >> 8);
+		array[3] = (byte) i;
+		return array;
 	}
 
 	public static <A, B, X extends Throwable> Collection<B> map(Collection<A> collection, ThrowingFunction<A, B, X> function) throws X {

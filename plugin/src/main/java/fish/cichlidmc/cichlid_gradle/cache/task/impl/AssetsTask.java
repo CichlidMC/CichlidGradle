@@ -4,16 +4,18 @@ import fish.cichlidmc.cichlid_gradle.cache.storage.AssetStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.LockableStorage;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
+import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
+import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import fish.cichlidmc.cichlid_gradle.util.io.Download;
 import fish.cichlidmc.cichlid_gradle.util.io.DownloadBatch;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
-import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
-import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import fish.cichlidmc.pistonmetaparser.version.assets.Asset;
 import fish.cichlidmc.pistonmetaparser.version.assets.AssetIndex;
 import fish.cichlidmc.pistonmetaparser.version.assets.FullAssetIndex;
 import fish.cichlidmc.tinyjson.TinyJson;
 import fish.cichlidmc.tinyjson.value.JsonValue;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,6 +23,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 public class AssetsTask extends CacheTask {
+	private static final Logger logger = Logging.getLogger(AssetsTask.class);
+
 	private LockableStorage.Lock lock;
 
 	public AssetsTask(CacheTaskEnvironment env) {
@@ -28,24 +32,20 @@ public class AssetsTask extends CacheTask {
 	}
 
 	@Override
-	public void doRun() throws IOException {
+	public String run() throws IOException {
 		AssetStorage assets = this.env.cache.assets;
 		this.lock = assets.lockLoudly("Assets are currently locked by {}, awaiting release");
 		// see if it's done now
 		AssetIndex index = this.env.version.assetIndex;
 		if (assets.isComplete(index)) {
-			this.logger.quiet("Asset index {} is now cached.", index.id);
-			return;
+			return "Asset index " + index.id + " is now cached.";
 		}
-
-		this.logger.quiet("Asset index {} is not cached, downloading", index.id);
 
 		Path indexFile = assets.index(index);
 		new Download(index, indexFile).run();
 		// read downloaded file to avoid downloading again with expand()
 		JsonValue indexJson = TinyJson.parse(indexFile);
 		FullAssetIndex fullIndex = FullAssetIndex.parse(indexJson);
-		long startTime = System.currentTimeMillis();
 
 		DownloadBatch.Builder builder = new DownloadBatch.Builder();
 		for (Asset asset : fullIndex.objects.values()) {
@@ -55,24 +55,22 @@ public class AssetsTask extends CacheTask {
 			}
 		}
 
-		this.logger.quiet("Downloading {} asset objects...", builder.size());
+		logger.quiet("Downloading {} asset object(s)...", builder.size());
 
 		builder.build().execute();
 
-		long endTime = System.currentTimeMillis();
-		long seconds = (endTime - startTime) / 1000;
-		this.logger.quiet("Finished downloading assets in {} seconds.", seconds);
-
 		if (fullIndex.isVirtual()) {
-			this.logger.quiet("Extracting virtual assets");
+			logger.quiet("Extracting virtual assets...");
 			this.extractVirtualAssets(index, fullIndex);
 		}
 
 		assets.markComplete(index);
+		return "Index contained " + fullIndex.objects.size() + " object(s), " + builder.size() + " of which were missing.";
 	}
 
 	@Override
 	protected void cleanup() throws IOException {
+		// unlock here in case run throws
 		if (this.lock != null) {
 			this.lock.close();
 		}
@@ -96,13 +94,13 @@ public class AssetsTask extends CacheTask {
 
 		long existingSize = Files.size(dest);
 		if (asset.size != existingSize) {
-			this.logger.warn("Found an existing asset that has changed size: {}. Bad download? Overwriting.", asset.path);
+			logger.warn("Found an existing asset that has changed size: {}. Bad download? Overwriting.", asset.path);
 			return true;
 		}
 
 		String existingHash = Encoding.HEX.encode(HashAlgorithm.SHA1.hash(dest));
 		if (!asset.hash.equals(existingHash)) {
-			this.logger.warn("Found an existing asset that has changed hashes: {}. Bad download? Overwriting.", asset.path);
+			logger.warn("Found an existing asset that has changed hashes: {}. Bad download? Overwriting.", asset.path);
 			return true;
 		}
 

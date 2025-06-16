@@ -1,6 +1,7 @@
 package fish.cichlidmc.cichlid_gradle.merge;
 
 import fish.cichlidmc.cichlid_gradle.util.IterableStream;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import fish.cichlidmc.distmarker.Dist;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ public class MergeSource {
     }
 
     public void listEntries(Set<String> entries) throws IOException {
-        Path root = this.fs.getRootDirectories().iterator().next();
+        Path root = FileUtils.getSingleRoot(this.fs);
         walk(root, "", entries);
     }
 

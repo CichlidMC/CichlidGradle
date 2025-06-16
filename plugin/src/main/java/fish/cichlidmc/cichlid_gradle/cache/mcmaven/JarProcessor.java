@@ -34,8 +34,8 @@ public final class JarProcessor {
 
 		try (FileSystem inputFs = FileSystems.newFileSystem(inputJar); FileSystem outputFs = FileSystems.newFileSystem(outputJar)) {
 			// jars should have 1 root
-			Path inputRoot = Utils.getOnly(inputFs.getRootDirectories());
-			Path outputRoot = Utils.getOnly(outputFs.getRootDirectories());
+			Path inputRoot = FileUtils.getSingleRoot(inputFs);
+			Path outputRoot = FileUtils.getSingleRoot(outputFs);
 
 			Input input = collectInput(inputRoot);
 			for (ClassGroup group : input.groups.values()) {

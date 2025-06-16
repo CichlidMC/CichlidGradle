@@ -71,7 +71,7 @@ public final class MinecraftMaven {
 			throw new InvalidUserDataException("Minecraft definition '" + request.def + "' does not exist");
 		}
 
-		String version = def.getVersionOrThrow();
+		String version = def.version();
 
 		Iterable<File> transformerFiles = def.resolvableTransformers().getIncoming().getFiles();
 		Transformers transformers = new Transformers(transformerFiles, request.hash);
@@ -90,13 +90,17 @@ public final class MinecraftMaven {
 	private InputStream getArtifact(String versionId, Distribution dist, Transformers transformers, Request request) throws IOException {
 		// see if this version actually exists
 		Version version = ManifestCache.getVersion(versionId);
-		if (version == null)
+		if (version == null) {
+			logger.warn("Minecraft version does not exist: {}", versionId);
 			return null;
+		}
 
 		FullVersion fullVersion = ManifestCache.expand(version);
 		// and the dist. all versions have a client, check for server
-		if (dist != Distribution.CLIENT && fullVersion.downloads.server.isEmpty())
+		if (dist != Distribution.CLIENT && fullVersion.downloads.server.isEmpty()) {
+			logger.warn("Minecraft version doesn't have a server, but it was requested: {}", versionId);
 			return null;
+		}
 
 		if (fullVersion.downloads.clientMappings.isEmpty()) {
 			throw new InvalidUserDataException("Versions pre-mojmap are not currently supported!");
@@ -141,7 +145,9 @@ public final class MinecraftMaven {
 
 		// file should now exist
 		String content = Files.readString(template);
-		String filled = content.replace(PomGenerator.VERSION_PLACEHOLDER, request.gradleRequestedVersion());
+		// of course & has special meaning in xml
+		String escaped = request.gradleRequestedVersion().replace("&", "&amp;");
+		String filled = content.replace(PomGenerator.VERSION_PLACEHOLDER, escaped);
 		return new ByteArrayInputStream(filled.getBytes(StandardCharsets.UTF_8));
 	}
 
@@ -195,7 +201,7 @@ public final class MinecraftMaven {
 			}
 		}
 
-		logger.quiet("Intercepted request for Minecraft definition {}, {}, {}", defName, artifact, hashAlgorithm);
+		logger.debug("Intercepted request for Minecraft definition {}, {}, {}", defName, artifact, hashAlgorithm);
 
 		return new Request(defName, hash, artifact, Optional.ofNullable(hashAlgorithm));
 	}

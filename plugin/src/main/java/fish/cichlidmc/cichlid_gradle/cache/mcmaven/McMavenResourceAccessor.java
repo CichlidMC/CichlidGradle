@@ -28,16 +28,12 @@ public final class McMavenResourceAccessor implements ExternalResourceAccessor {
 	public <T> T withContent(ExternalResourceName location, boolean revalidate,
 							 ExternalResource.ContentAndMetadataAction<T> action) throws ResourceException {
 		URI uri = location.getUri();
-		System.out.println("checking " + uri);
 
 		try {
 			InputStream stream = this.mcMaven.get(uri);
-			if (stream == null) {
-				System.out.println("nope :( " + uri);
+			if (stream == null)
 				return null;
-			}
 
-			System.out.println("yep :)");
 			return action.execute(stream, this.getMetaData(location, revalidate));
 		} catch (Exception e) {
 			logger.error("Error while getting URL from mcmaven: {}", uri, e);
@@ -49,7 +45,6 @@ public final class McMavenResourceAccessor implements ExternalResourceAccessor {
 	@Override
 	public ExternalResourceMetaData getMetaData(ExternalResourceName location, boolean revalidate) throws ResourceException {
 		URI uri = location.getUri();
-		System.out.println("checking " + uri);
 
 		try {
 			return this.mcMaven.get(uri) == null ? null : new DefaultExternalResourceMetaData(uri, -1, -1);

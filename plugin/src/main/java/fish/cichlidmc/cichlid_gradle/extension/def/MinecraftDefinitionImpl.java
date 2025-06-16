@@ -1,9 +1,11 @@
 package fish.cichlidmc.cichlid_gradle.extension.def;
 
+import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
-import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.Utils;
 import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
 import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Project;
@@ -18,6 +20,11 @@ import org.gradle.api.provider.Provider;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -54,7 +61,7 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 
 		DependencyFactory depFactory = project.getDependencyFactory();
 		this.dependency = project.getProviders().provider(
-				() -> depFactory.create("net.minecraft", "minecraft", name + '$' + this.hashTransformers())
+				() -> depFactory.create("net.minecraft", "minecraft", name + '$' + this.hash())
 		);
 	}
 
@@ -83,7 +90,7 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 		return this.dependency;
 	}
 
-	public String getVersionOrThrow() {
+	public String version() {
 		if (this.version.isPresent()) {
 			return this.version.get();
 		}
@@ -99,11 +106,25 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 		return this.resolvableTransformers.get();
 	}
 
-	private String hashTransformers() throws IOException {
+	private String hash() throws IOException {
+		MessageDigest digest = HashAlgorithm.SHA256.digest();
+
+		// include the current format so bumping it causes a refresh
+		digest.update(Utils.bytes(CichlidCache.FORMAT));
+		digest.update(this.version().getBytes(StandardCharsets.UTF_8));
+		digest.update(this.dist().bytes);
+
 		Set<File> files = this.resolvableTransformers().getIncoming().getFiles().getFiles();
 		Set<File> sorted = new TreeSet<>(FileUtils.FILE_COMPARATOR_BY_NAME);
 		sorted.addAll(files);
 
-		return Encoding.BASE_FUNNY.encode(HashAlgorithm.SHA256.hashFiles(sorted));
+		for (File file : sorted) {
+			try (DigestInputStream stream = new DigestInputStream(Files.newInputStream(file.toPath()), digest)) {
+				// let the implementation read bytes in whatever way is most optimal
+				stream.transferTo(OutputStream.nullOutputStream());
+			}
+		}
+
+		return Encoding.BASE_FUNNY.encode(digest.digest());
 	}
 }

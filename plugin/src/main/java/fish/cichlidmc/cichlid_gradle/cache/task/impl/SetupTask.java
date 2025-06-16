@@ -14,6 +14,8 @@ import net.neoforged.art.api.SignatureStripperConfig;
 import net.neoforged.art.api.SourceFixerConfig;
 import net.neoforged.art.api.Transformer;
 import net.neoforged.srgutils.IMappingFile;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -25,6 +27,8 @@ import java.util.List;
 import java.util.jar.JarFile;
 
 public class SetupTask extends CacheTask {
+	private static final Logger logger = Logging.getLogger(SetupTask.class);
+
 	public SetupTask(CacheTaskEnvironment env) {
 		super("Setup " + env.dist, env);
 
@@ -34,10 +38,12 @@ public class SetupTask extends CacheTask {
 	}
 
 	@Override
-	protected void doRun() throws IOException {
+	protected String run() throws IOException {
 		if (this.env.dist == Distribution.CLIENT) {
 			// this.context.submit(new GenerateClientRunTemplateTask(this.context, this.storage.runs, this.version));
-			this.env.submit(ExtractNativesTask::new);
+			if (ExtractNativesTask.shouldRun(this.env.version)) {
+				this.env.submit(ExtractNativesTask::new);
+			}
 		}
 
 		Downloads downloads = this.env.version.downloads;
@@ -89,6 +95,8 @@ public class SetupTask extends CacheTask {
 			// do this after remapping, so the real jar is present
 			// this.context.submit(new GenerateServerRunTemplateTask(this.context, this.storage));
 		}
+
+		return null;
 	}
 
 	private void tryUnbundle(Path serverTempJar, VersionStorage storage) throws IOException {
@@ -98,7 +106,7 @@ public class SetupTask extends CacheTask {
 				return;
 
 			if (!format.equals("1.0")) {
-				this.logger.warn("Server bundle uses an untested format, this may not go well.");
+				logger.warn("Server bundle uses an untested format ({}), this may not go well.", format);
 			}
 		}
 
