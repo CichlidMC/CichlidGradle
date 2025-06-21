@@ -38,7 +38,7 @@ public class MergeTask extends CacheTask {
 				};
 
 				if (distribution != null) {
-					CacheTaskEnvironment env = this.environmentFor(distribution);
+					CacheTaskEnvironment env = this.env.withDist(distribution);
 					futures.add(env.submit(SetupTask::new).thenApply($ -> MergeSource.createUnchecked(dist, jar)));
 				}
 			}
@@ -47,13 +47,5 @@ public class MergeTask extends CacheTask {
 		List<MergeSource> sources = futures.stream().map(CompletableFuture::join).toList();
 		JarMerger.merge(sources, jars.get(Distribution.MERGED));
 		return null;
-	}
-
-	private CacheTaskEnvironment environmentFor(Distribution dist) {
-		if (this.env.dist == dist) {
-			return this.env;
-		} else {
-			return new CacheTaskEnvironment(this.env.version, this.env.cache, dist, this.env.transformers);
-		}
 	}
 }

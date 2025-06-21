@@ -3,13 +3,13 @@ package fish.cichlidmc.cichlid_gradle.cache.mcmaven;
 import fish.cichlidmc.cichlid_gradle.cache.Artifact;
 import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
 import fish.cichlidmc.cichlid_gradle.cache.ManifestCache;
-import fish.cichlidmc.cichlid_gradle.cache.Transformers;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.AssetsTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.ReassembleBinaryTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.ReassembleSourcesTask;
 import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinition;
 import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinitionImpl;
+import fish.cichlidmc.cichlid_gradle.extension.def.TransformersImpl;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
 import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
@@ -23,7 +23,6 @@ import org.gradle.api.logging.Logging;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -73,10 +72,7 @@ public final class MinecraftMaven {
 
 		String version = def.version();
 
-		Iterable<File> transformerFiles = def.resolvableTransformers().getIncoming().getFiles();
-		Transformers transformers = new Transformers(transformerFiles, request.hash);
-
-		InputStream stream = this.getArtifact(version, def.dist(), transformers, request);
+		InputStream stream = this.getArtifact(version, def.dist(), def.getTransformers(), request);
 		if (stream == null || request.hashAlgorithm.isEmpty())
 			return stream;
 
@@ -85,9 +81,8 @@ public final class MinecraftMaven {
 		return new ByteArrayInputStream(hash.getBytes(StandardCharsets.UTF_8));
 	}
 
-
 	@Nullable
-	private InputStream getArtifact(String versionId, Distribution dist, Transformers transformers, Request request) throws IOException {
+	private InputStream getArtifact(String versionId, Distribution dist, TransformersImpl transformers, Request request) throws IOException {
 		// see if this version actually exists
 		Version version = ManifestCache.getVersion(versionId);
 		if (version == null) {
@@ -111,14 +106,14 @@ public final class MinecraftMaven {
 		}
 
 		boolean needsAssets = dist.needsAssets() && !this.cache.assets.isComplete(fullVersion.assetIndex);
-		Path jar = this.cache.reassembledJars.get(versionId, transformers.hash(), dist, request.artifact);
+		Path jar = this.cache.reassembledJars.get(versionId, request.hash, dist, request.artifact);
 		boolean needsJar = !Files.exists(jar);
 
 		if (!needsAssets && !needsJar) {
 			return Files.newInputStream(jar);
 		}
 
-		CacheTaskEnvironment.Builder builder = new CacheTaskEnvironment.Builder(fullVersion, this.cache, dist, transformers);
+		CacheTaskEnvironment.Builder builder = new CacheTaskEnvironment.Builder(request.hash, fullVersion, this.cache, dist, transformers);
 
 		if (needsAssets) {
 			builder.add(AssetsTask::new);

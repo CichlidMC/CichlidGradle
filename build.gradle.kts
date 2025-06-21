@@ -24,7 +24,8 @@ val mc by minecraft.creating {
 dependencies {
     implementation(mc.dependency)
 
-//    mc.transformer(fileTree("src/main/resources/transformers"))
+    mc.transformers.mod(files("src/main/resources"))
+//    mc.transformers.namespaced("testmod")(files("src/main/resources/transformers"))
 
     compileOnly(cichlid.api("0.3.2"))
     cichlidRuntime(cichlid.runtime("0.3.2"))

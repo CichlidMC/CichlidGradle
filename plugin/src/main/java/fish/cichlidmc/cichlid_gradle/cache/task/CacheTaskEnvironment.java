@@ -1,7 +1,7 @@
 package fish.cichlidmc.cichlid_gradle.cache.task;
 
 import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
-import fish.cichlidmc.cichlid_gradle.cache.Transformers;
+import fish.cichlidmc.cichlid_gradle.extension.def.TransformersImpl;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.tinycodecs.util.Either;
@@ -21,20 +21,26 @@ import java.util.concurrent.CompletableFuture;
 public class CacheTaskEnvironment {
 	private static final Logger logger = Logging.getLogger(CacheTaskEnvironment.class);
 
+	public final String hash;
 	public final FullVersion version;
 	public final CichlidCache cache;
 	public final Distribution dist;
-	public final Transformers transformers;
+	public final TransformersImpl transformers;
 
 	private final Map<CacheTask.Runner, CompletableFuture<Void>> futures = Collections.synchronizedMap(new IdentityHashMap<>());
 	private final Set<CacheTask.Runner> incompleteTasks = Collections.synchronizedSet(new HashSet<>());
 	private final Map<CacheTask.Runner, Throwable> errors = Collections.synchronizedMap(new IdentityHashMap<>());
 
-	public CacheTaskEnvironment(FullVersion version, CichlidCache cache, Distribution dist, Transformers transformers) {
+	public CacheTaskEnvironment(String hash, FullVersion version, CichlidCache cache, Distribution dist, TransformersImpl transformers) {
+		this.hash = hash;
 		this.version = version;
 		this.cache = cache;
 		this.dist = dist;
 		this.transformers = transformers;
+	}
+
+	public CacheTaskEnvironment withDist(Distribution dist) {
+		return this.dist == dist ? this : new CacheTaskEnvironment(this.hash, this.version, this.cache, dist, this.transformers);
 	}
 
 	public void submitAndAwait(TaskFactory factory) {
@@ -113,13 +119,15 @@ public class CacheTaskEnvironment {
 	}
 
 	public static final class Builder {
+		private final String hash;
 		private final FullVersion version;
 		private final CichlidCache cache;
 		private final Distribution dist;
-		private final Transformers transformers;
+		private final TransformersImpl transformers;
 		private final List<TaskFactory> factories;
 
-		public Builder(FullVersion version, CichlidCache cache, Distribution dist, Transformers transformers) {
+		public Builder(String hash, FullVersion version, CichlidCache cache, Distribution dist, TransformersImpl transformers) {
+			this.hash = hash;
 			this.version = version;
 			this.cache = cache;
 			this.dist = dist;
@@ -133,7 +141,7 @@ public class CacheTaskEnvironment {
 
 		public CacheTaskEnvironment start() {
 			logger.quiet("Starting {} cache task(s)...", this.factories.size());
-			CacheTaskEnvironment env = new CacheTaskEnvironment(this.version, this.cache, this.dist, this.transformers);
+			CacheTaskEnvironment env = new CacheTaskEnvironment(this.hash, this.version, this.cache, this.dist, this.transformers);
 			this.factories.forEach(env::submit);
 			return env;
 		}

@@ -13,8 +13,13 @@ public interface MinecraftDefinition extends Named {
 	// specially named properties for DSL
 	Property<String> getVersion();
 	Property<Distribution> getDistribution();
-	DependencyScopeConfiguration getTransformer();
 	Provider<ExternalModuleDependency> getDependency();
+	Transformers getTransformers();
+
+	interface Transformers {
+		DependencyScopeConfiguration getMod();
+		DependencyScopeConfiguration namespaced(String namespace);
+	}
 
 	static void setup(Project project) {
 		project.getExtensions().add("minecraft", project.getObjects().domainObjectContainer(

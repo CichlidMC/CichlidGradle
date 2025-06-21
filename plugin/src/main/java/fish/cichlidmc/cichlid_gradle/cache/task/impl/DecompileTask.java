@@ -34,7 +34,7 @@ public final class DecompileTask extends CacheTask {
 
 	@Override
 	protected String run() throws FileNotFoundException {
-		Path input = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.transformers.hash(), this.env.dist);
+		Path input = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.hash, this.env.dist);
 
 		if (!Files.exists(input)) {
 			this.env.submitAndAwait(ReassembleBinaryTask::new);

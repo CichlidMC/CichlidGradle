@@ -9,7 +9,7 @@ public final class TransformedClassStorage {
 		this.root = root;
 	}
 
-	public Path get(String transformersHash, String bytecodeHash) {
-		return this.root.resolve(transformersHash).resolve(bytecodeHash + ".class");
+	public Path get(String defHash, String bytecodeHash) {
+		return this.root.resolve(defHash).resolve(bytecodeHash + ".class");
 	}
 }

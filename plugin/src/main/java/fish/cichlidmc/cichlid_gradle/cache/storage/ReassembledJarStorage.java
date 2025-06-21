@@ -12,27 +12,27 @@ public final class ReassembledJarStorage {
 		this.root = root;
 	}
 
-	public Path get(String version, String transformersHash, Distribution dist, Artifact artifact) {
+	public Path get(String version, String defHash, Distribution dist, Artifact artifact) {
 		return switch (artifact) {
-			case JAR -> this.binary(version, transformersHash, dist);
-			case SOURCES -> this.sources(version, transformersHash, dist);
+			case JAR -> this.binary(version, defHash, dist);
+			case SOURCES -> this.sources(version, defHash, dist);
 			case POM -> throw new IllegalArgumentException("poms are not jars");
 		};
 	}
 
-	public Path get(String version, String transformersHash, Distribution dist, boolean sources) {
-		return sources ? this.sources(version, transformersHash, dist) : this.binary(version, transformersHash, dist);
+	public Path get(String version, String defHash, Distribution dist, boolean sources) {
+		return sources ? this.sources(version, defHash, dist) : this.binary(version, defHash, dist);
 	}
 
-	public Path binary(String version, String transformersHash, Distribution dist) {
-		return this.path(version, transformersHash, dist, "binary");
+	public Path binary(String version, String defHash, Distribution dist) {
+		return this.path(version, defHash, dist, "binary");
 	}
 
-	public Path sources(String version, String transformersHash, Distribution dist) {
-		return this.path(version, transformersHash, dist, "sources");
+	public Path sources(String version, String defHash, Distribution dist) {
+		return this.path(version, defHash, dist, "sources");
 	}
 
-	private Path path(String version, String transformersHash, Distribution dist, String name) {
-		return this.root.resolve(version).resolve(dist.name).resolve(transformersHash).resolve(name + ".jar");
+	private Path path(String version, String defHash, Distribution dist, String name) {
+		return this.root.resolve(version).resolve(dist.name).resolve(defHash).resolve(name + ".jar");
 	}
 }

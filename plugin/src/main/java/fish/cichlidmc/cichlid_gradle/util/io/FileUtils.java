@@ -29,8 +29,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipOutputStream;
 
 public class FileUtils {
-    public static final Comparator<Path> PATH_COMPARATOR_BY_NAME = Comparator.comparing(path -> path.getFileName().toString());
-    public static final Comparator<File> FILE_COMPARATOR_BY_NAME = Comparator.comparing(File::getName);
+    public static final Comparator<File> FILE_COMPARATOR = Comparator.comparing(File::getPath);
 
     private static final Logger logger = Logging.getLogger(FileUtils.class);
 

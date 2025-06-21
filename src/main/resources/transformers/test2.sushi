@@ -1,0 +1,7 @@
+{
+  "target": "net.minecraft.client.main.Main",
+  "transforms": {
+    "type": "add_interface",
+    "interface": "fish.cichlidmc.cichlid_gradle.util.TestInterfacePleaseIgnore"
+  }
+}

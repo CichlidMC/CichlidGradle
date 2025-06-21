@@ -28,7 +28,7 @@ public final class ReassembleBinaryTask extends CacheTask {
 		}
 
 		FileUtils.assertExists(input);
-		Path output = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.transformers.hash(), this.env.dist);
+		Path output = this.env.cache.reassembledJars.binary(this.env.version.id, this.env.hash, this.env.dist);
 
 		JarProcessor.run(input, output, this::transform);
 		return null;
@@ -43,7 +43,7 @@ public final class ReassembleBinaryTask extends CacheTask {
 			return entry;
 
 		String bytecodeHash = Encoding.BASE_FUNNY.encode(HashAlgorithm.SHA256.hash(entry.content()));
-		Path transformed = this.env.cache.transformedClasses.get(this.env.transformers.hash(), bytecodeHash);
+		Path transformed = this.env.cache.transformedClasses.get(this.env.hash, bytecodeHash);
 
 		if (!Files.exists(transformed)) {
 			if (this.ranTransform) {

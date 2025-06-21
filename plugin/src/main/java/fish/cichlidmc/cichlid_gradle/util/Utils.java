@@ -42,12 +42,7 @@ public final class Utils {
 	}
 
 	public static byte[] bytes(int i) {
-		byte[] array = new byte[4];
-		array[0] = (byte) (i >> 24);
-		array[1] = (byte) (i >> 16);
-		array[2] = (byte) (i >> 8);
-		array[3] = (byte) i;
-		return array;
+		return new byte[] { (byte) (i >> 24), (byte) (i >> 16), (byte) (i >> 8), (byte) i };
 	}
 
 	public static <A, B, X extends Throwable> Collection<B> map(Collection<A> collection, ThrowingFunction<A, B, X> function) throws X {
