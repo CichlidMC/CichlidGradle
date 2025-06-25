@@ -19,6 +19,12 @@ repositories {
 val mc by minecraft.creating {
     version = "1.21.5"
     distribution = Distribution.CLIENT
+
+    runs {
+        register("client") {
+            client()
+        }
+    }
 }
 
 dependencies {
@@ -29,29 +35,6 @@ dependencies {
 
     compileOnly(cichlid.api("0.3.2"))
     cichlidRuntime(cichlid.runtime("0.3.2"))
-}
-
-cichlid {
-    runs {
-//        register("client") {
-//            version = mcVer
-//        }
-//        register("client 1.21.4") {
-//            version = "1.21.4"
-//            template = "client"
-//        }
-
-//        register("serverButCooler") {
-//            template = "server"
-//            programArgs.get().remove("nogui")
-//            jvmArg("-Dmixin.debug.export=true")
-//        }
-//
-//        configureEach {
-//            version = minecraftVersion
-//            jvmArg("-Dmixin.debug.export=true")
-//        }
-    }
 }
 
 tasks.register("resolveCompileSources") {

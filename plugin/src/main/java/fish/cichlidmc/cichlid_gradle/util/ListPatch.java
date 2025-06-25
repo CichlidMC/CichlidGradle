@@ -1,5 +1,8 @@
 package fish.cichlidmc.cichlid_gradle.util;
 
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.Property;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,5 +40,10 @@ public class ListPatch<T> {
 		// add new entries
 		copy.addAll(this.values);
 		return copy;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> Property<ListPatch<T>> property(ObjectFactory objects) {
+		return (Property<ListPatch<T>>) (Object) objects.property(ListPatch.class);
 	}
 }

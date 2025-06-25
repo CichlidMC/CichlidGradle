@@ -1,38 +1,51 @@
 package fish.cichlidmc.cichlid_gradle.run;
 
-import javax.inject.Inject;
-
+import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.ListPatch;
 import org.gradle.api.Named;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.SourceSet;
 
-public abstract class RunConfiguration implements Named {
-	public abstract Property<String> getVersion();
-	public abstract Property<String> getTemplate();
-	public abstract Property<String> getMainClass();
-	public abstract Property<String> getRunDir();
-	public abstract Property<String> getSourceSet();
-	public abstract Property<ListPatch<String>> getProgramArgs();
-	public abstract Property<ListPatch<String>> getJvmArgs();
+import java.util.Locale;
 
-	@Inject // inject name
-	public RunConfiguration() {
-		this.getRunDir().convention("run");
-		this.getSourceSet().convention("main");
-		this.getProgramArgs().convention(new ListPatch<>());
-		this.getJvmArgs().convention(new ListPatch<>());
-	}
+public interface RunConfiguration extends Named {
+	Property<Type> getType();
+	Property<String> getMainClass();
+	DirectoryProperty getRunDir();
+	Property<String> getSourceSet();
+	Property<ListPatch<String>> getProgramArgs();
+	Property<ListPatch<String>> getJvmArgs();
 
-	public void jvmArg(String arg) {
-		this.getJvmArgs().get().add(arg);
-	}
+	void client();
 
-	public void programArg(String arg) {
-		this.getProgramArgs().get().add(arg);
-	}
+	void server();
 
-	public void sourceSet(SourceSet sourceSet) {
-		this.getSourceSet().set(sourceSet.getName());
+	void jvmArg(String arg);
+
+	void programArg(String arg);
+
+	void sourceSet(SourceSet sourceSet);
+
+	enum Type {
+		CLIENT(Distribution.CLIENT),
+		SERVER(Distribution.SERVER);
+
+		public final String name;
+		public final Distribution asDist;
+
+		Type(Distribution asDist) {
+			this.name = this.name().toLowerCase(Locale.ROOT);
+			this.asDist = asDist;
+		}
+
+		public boolean isCompatibleWith(Distribution dist) {
+			return this.asDist == dist || dist == Distribution.MERGED;
+		}
+
+		@Override
+		public String toString() {
+			return this.name;
+		}
 	}
 }

@@ -3,6 +3,8 @@ package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 import fish.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
+import fish.cichlidmc.cichlid_gradle.run.RunTemplate;
+import fish.cichlidmc.cichlid_gradle.run.RunTemplateGenerator;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.io.DownloadBatch;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
@@ -40,7 +42,6 @@ public class SetupTask extends CacheTask {
 	@Override
 	protected String run() throws IOException {
 		if (this.env.dist == Distribution.CLIENT) {
-			// this.context.submit(new GenerateClientRunTemplateTask(this.context, this.storage.runs, this.version));
 			if (ExtractNativesTask.shouldRun(this.env.version)) {
 				this.env.submit(ExtractNativesTask::new);
 			}
@@ -91,10 +92,14 @@ public class SetupTask extends CacheTask {
 		Files.writeString(logFile, String.join("\n", log));
 		Files.delete(tempJar);
 
-		if (this.env.dist == Distribution.SERVER) {
-			// do this after remapping, so the real jar is present
-			// this.context.submit(new GenerateServerRunTemplateTask(this.context, this.storage));
-		}
+		// do this after remapping, so the real server jar is present
+		RunTemplate template = switch (this.env.dist) {
+			case SERVER -> RunTemplateGenerator.generateServer(this.env.cache, this.env.version);
+			case CLIENT -> RunTemplateGenerator.generateClient(this.env.version);
+			case MERGED -> throw new IllegalStateException("Dist is merged?");
+		};
+
+		storage.runs.writeTemplate(this.env.dist.name, template);
 
 		return null;
 	}

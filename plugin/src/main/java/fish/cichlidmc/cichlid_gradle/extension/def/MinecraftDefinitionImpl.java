@@ -1,11 +1,14 @@
 package fish.cichlidmc.cichlid_gradle.extension.def;
 
 import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
+import fish.cichlidmc.cichlid_gradle.run.RunConfiguration;
+import fish.cichlidmc.cichlid_gradle.run.RunConfigurationImpl;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.Utils;
 import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
 import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import org.gradle.api.InvalidUserDataException;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.dsl.DependencyFactory;
@@ -26,6 +29,7 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 
 	private final Property<String> version;
 	private final Property<Distribution> distribution;
+	private final NamedDomainObjectContainer<RunConfigurationImpl> runs;
 	private final TransformersImpl transformers;
 
 	private final Provider<ExternalModuleDependency> dependency;
@@ -46,6 +50,8 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 
 		this.distribution = objects.property(Distribution.class).convention(Distribution.MERGED);
 		this.distribution.finalizeValueOnRead();
+
+		this.runs = objects.domainObjectContainer(RunConfigurationImpl.class, RunConfigurationImpl.factory(project));
 
 		this.transformers = TransformersImpl.of(name, project.getConfigurations());
 
@@ -78,6 +84,11 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 	@Override
 	public TransformersImpl getTransformers() {
 		return this.transformers;
+	}
+
+	@Override
+	public NamedDomainObjectContainer<? extends RunConfiguration> getRuns() {
+		return this.runs;
 	}
 
 	public String version() {

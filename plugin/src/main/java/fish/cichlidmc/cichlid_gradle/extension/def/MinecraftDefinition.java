@@ -1,5 +1,6 @@
 package fish.cichlidmc.cichlid_gradle.extension.def;
 
+import fish.cichlidmc.cichlid_gradle.run.RunConfiguration;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectContainer;
@@ -15,6 +16,7 @@ public interface MinecraftDefinition extends Named {
 	Property<Distribution> getDistribution();
 	Provider<ExternalModuleDependency> getDependency();
 	Transformers getTransformers();
+	NamedDomainObjectContainer<? extends RunConfiguration> getRuns();
 
 	interface Transformers {
 		DependencyScopeConfiguration getMod();

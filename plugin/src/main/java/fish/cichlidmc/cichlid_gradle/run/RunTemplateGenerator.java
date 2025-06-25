@@ -1,18 +1,24 @@
 package fish.cichlidmc.cichlid_gradle.run;
 
+import fish.cichlidmc.cichlid_gradle.cache.CichlidCache;
+import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.Pair;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.pistonmetaparser.rule.Features;
 import fish.cichlidmc.pistonmetaparser.rule.Rule;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
-public class ClientRunTemplateGenerator {
+public class RunTemplateGenerator {
     public static final Set<String> GAME_ARG_WHITELIST = Set.of(
             "--gameDir", "--workDir", "--tweakClass",
             "--assetsDir", "--assetIndex",
@@ -29,7 +35,7 @@ public class ClientRunTemplateGenerator {
     public static final String XSS = "-Xss";
     public static final String FLAG = "true";
 
-    public static RunTemplate generate(FullVersion version) {
+    public static RunTemplate generateClient(FullVersion version) {
         Map<String, String> gameArgs = getGameArgs(version);
         assertPlaceholdersAllowed(gameArgs);
         List<String> gameArgsList = recombineArgs(gameArgs);
@@ -37,6 +43,22 @@ public class ClientRunTemplateGenerator {
         assertPlaceholdersAllowed(jvmArgs);
         List<String> jvmArgsList = recombineArgs(jvmArgs);
         return new RunTemplate(version.mainClass, gameArgsList, jvmArgsList);
+    }
+
+    public static RunTemplate generateServer(CichlidCache cache, FullVersion version) throws IOException {
+        // read main class from server jar manifest
+        Path jar = cache.getVersion(version.id).jars.get(Distribution.SERVER);
+        if (!Files.exists(jar)) {
+            throw new IllegalStateException("Minecraft server jar is missing");
+        }
+        try (JarFile jarFile = new JarFile(jar.toFile())) {
+            String mainClass = jarFile.getManifest().getMainAttributes().getValue("Main-Class");
+            if (mainClass == null) {
+                throw new IllegalStateException("Main-Class attribute is missing");
+            }
+
+            return new RunTemplate(mainClass, List.of("nogui"), List.of("-Xmx1G"));
+        }
     }
 
     private static Map<String, String> getGameArgs(FullVersion version) {

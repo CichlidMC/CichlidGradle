@@ -1,12 +1,8 @@
 package fish.cichlidmc.cichlid_gradle.extension;
 
-import fish.cichlidmc.cichlid_gradle.run.RunConfiguration;
-import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
 
 public interface CichlidExtension {
-	NamedDomainObjectContainer<RunConfiguration> getRuns();
-
 	static void setup(Project project) {
 		project.getExtensions().create(CichlidExtension.class, "cichlid", CichlidExtensionImpl.class);
 	}
