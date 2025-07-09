@@ -1,8 +1,9 @@
 package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
-import fish.cichlidmc.cichlid_gradle.cache.mcmaven.JarProcessor;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
+import fish.cichlidmc.cichlid_gradle.cache.task.processor.ClassGroup;
+import fish.cichlidmc.cichlid_gradle.cache.task.processor.JarProcessor;
 import fish.cichlidmc.cichlid_gradle.util.Utils;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import org.jetbrains.java.decompiler.main.Fernflower;
@@ -45,7 +46,7 @@ public final class DecompileTask extends CacheTask {
 
 		try (FileSystem fs = FileSystems.newFileSystem(input)) {
 			Path root = FileUtils.getSingleRoot(fs);
-			Map<String, JarProcessor.ClassGroup> groups = JarProcessor.collectInput(root).groups();
+			Map<String, ClassGroup> groups = JarProcessor.collectInput(root).groups();
 
 			CacheResultSaver saver = new CacheResultSaver(this.env.cache.decompiledClasses, groups);
 			Fernflower decompiler = new Fernflower(saver, PREFERENCES, IFernflowerLogger.NO_OP);

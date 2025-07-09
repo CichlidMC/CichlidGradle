@@ -24,7 +24,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Predicate;
-import java.util.jar.JarFile;
 import java.util.stream.Stream;
 import java.util.zip.ZipOutputStream;
 
@@ -90,39 +89,15 @@ public class FileUtils {
 
     public static void unzip(Path target, Path dest, Predicate<String> filter) throws IOException {
         try (FileSystem fs = FileSystems.newFileSystem(target)) {
-            Path root = fs.getRootDirectories().iterator().next();
-            Files.walkFileTree(root, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    String fileName = file.getFileName().toString();
-                    if (filter.test(fileName)) {
-                        Path fileDest = dest.resolve(root.relativize(file).toString());
-                        if (!Files.exists(fileDest))
-                            FileUtils.copy(file, fileDest);
-                    }
-
-                    return FileVisitResult.CONTINUE;
+            Path root = getSingleRoot(fs);
+            walkFiles(root, file -> {
+                String fileName = file.getFileName().toString();
+                if (filter.test(fileName)) {
+                    Path fileDest = dest.resolve(root.relativize(file).toString());
+                    if (!Files.exists(fileDest))
+                        FileUtils.copy(file, fileDest);
                 }
             });
-        }
-    }
-
-    public static void removeJarSignatures(Path path) throws IOException {
-        // nuke META-INF, but preserve Main-Class for reading later
-        String mainClass;
-        try (JarFile jar = new JarFile(path.toFile())) {
-            mainClass = jar.getManifest().getMainAttributes().getValue("Main-Class");
-        }
-
-        if (mainClass == null)
-            return;
-
-        try (FileSystem fs = FileSystems.newFileSystem(path)) {
-            Path metaInf = fs.getPath("META-INF");
-            deleteRecursively(metaInf);
-            Files.createDirectories(metaInf);
-            Path manifest = metaInf.resolve("MANIFEST.MF");
-            Files.writeString(manifest, "Manifest-Version: 1.0\nMain-Class: " + mainClass + '\n'); // trailing break is critical
         }
     }
 
@@ -137,6 +112,16 @@ public class FileUtils {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    public static void walkFiles(Path root, IoConsumer<Path> consumer) throws IOException {
+        Files.walkFileTree(root, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                consumer.accept(file);
                 return FileVisitResult.CONTINUE;
             }
         });

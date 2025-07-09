@@ -1,8 +1,10 @@
 package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
-import fish.cichlidmc.cichlid_gradle.cache.mcmaven.JarProcessor;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
+import fish.cichlidmc.cichlid_gradle.cache.task.processor.ClassEntry;
+import fish.cichlidmc.cichlid_gradle.cache.task.processor.ClassGroup;
+import fish.cichlidmc.cichlid_gradle.cache.task.processor.JarProcessor;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 
 import java.io.IOException;
@@ -30,7 +32,7 @@ public final class ReassembleSourcesTask extends CacheTask {
 		return null;
 	}
 
-	private JarProcessor.ClassGroup getDecompiled(JarProcessor.ClassGroup group) throws IOException {
+	private ClassGroup getDecompiled(ClassGroup group) throws IOException {
 		String hash = group.hash();
 		Path path = this.env.cache.decompiledClasses.get(hash);
 
@@ -49,6 +51,6 @@ public final class ReassembleSourcesTask extends CacheTask {
 		}
 
 		String newName = group.main().fileName().replace(".class", ".java");
-		return new JarProcessor.ClassGroup(new JarProcessor.ClassEntry(newName, path));
+		return new ClassGroup(new ClassEntry(newName, path));
 	}
 }

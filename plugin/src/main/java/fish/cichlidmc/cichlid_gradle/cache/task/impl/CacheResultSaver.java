@@ -1,7 +1,7 @@
 package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
-import fish.cichlidmc.cichlid_gradle.cache.mcmaven.JarProcessor;
 import fish.cichlidmc.cichlid_gradle.cache.storage.DecompiledClassStorage;
+import fish.cichlidmc.cichlid_gradle.cache.task.processor.ClassGroup;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import org.jetbrains.java.decompiler.main.extern.IResultSaver;
 
@@ -15,12 +15,12 @@ import java.util.stream.Collectors;
 
 public final class CacheResultSaver implements IResultSaver {
 	private final DecompiledClassStorage storage;
-	private final Map<String, JarProcessor.ClassGroup> groups;
+	private final Map<String, ClassGroup> groups;
 
 	private int totalClasses;
 	private int savedClasses;
 
-	public CacheResultSaver(DecompiledClassStorage storage, Map<String, JarProcessor.ClassGroup> groups) {
+	public CacheResultSaver(DecompiledClassStorage storage, Map<String, ClassGroup> groups) {
 		this.storage = storage;
 		this.groups = groups;
 	}
@@ -35,7 +35,7 @@ public final class CacheResultSaver implements IResultSaver {
 
 	@Override
 	public void saveClassEntry(String path, String archiveName, String qualifiedName, String entryName, String content, int[] mapping) {
-		JarProcessor.ClassGroup group = this.groups.get(qualifiedName);
+		ClassGroup group = this.groups.get(qualifiedName);
 		if (group == null) {
 			throw new IllegalStateException("Class " + qualifiedName + " has no ClassGroup");
 		}

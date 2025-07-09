@@ -17,12 +17,12 @@ repositories {
 }
 
 val mc by minecraft.creating {
-    version = "1.21.5"
-    distribution = Distribution.CLIENT
+    version = "1.21.7"
+    distribution = Distribution.SERVER
 
     runs {
-        register("client") {
-            client()
+        register("server") {
+            server()
         }
     }
 }

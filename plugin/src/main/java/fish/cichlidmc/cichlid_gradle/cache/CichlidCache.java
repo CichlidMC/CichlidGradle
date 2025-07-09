@@ -4,7 +4,6 @@ import fish.cichlidmc.cichlid_gradle.cache.storage.AssetStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.DecompiledClassStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.PomTemplateStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.ReassembledJarStorage;
-import fish.cichlidmc.cichlid_gradle.cache.storage.TransformedClassStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
 import org.gradle.api.Project;
 import org.gradle.api.invocation.Gradle;
@@ -29,7 +28,6 @@ public final class CichlidCache {
 	public final AssetStorage assets;
 	public final ReassembledJarStorage reassembledJars;
 	public final DecompiledClassStorage decompiledClasses;
-	public final TransformedClassStorage transformedClasses;
 	public final PomTemplateStorage pomTemplates;
 
 	private CichlidCache(Path root) {
@@ -37,7 +35,6 @@ public final class CichlidCache {
 		this.assets = new AssetStorage(root.resolve("assets"));
 		this.reassembledJars = new ReassembledJarStorage(root.resolve("reassembled"));
 		this.decompiledClasses = new DecompiledClassStorage(root.resolve("decompiled"));
-		this.transformedClasses = new TransformedClassStorage(root.resolve("transformed"));
 		this.pomTemplates = new PomTemplateStorage(root.resolve("poms"));
 	}
 
