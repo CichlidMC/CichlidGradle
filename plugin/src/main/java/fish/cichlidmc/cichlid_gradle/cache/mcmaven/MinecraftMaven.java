@@ -29,6 +29,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,14 +41,16 @@ import java.util.regex.Pattern;
  */
 public final class MinecraftMaven {
 	public static final String GROUP = "net.minecraft";
-	public static final String MODULE = "minecraft";
+	public static final Collection<String> MODULES = Arrays.stream(Distribution.values())
+			.map(dist -> "minecraft-" + dist.name)
+			.toList();
 
 	/**
 	 * Regex for files that could possibly be provided.
 	 */
 	public static final Pattern VALID_FILE = Pattern.compile(
-			// groups:				  |1 |           |2 |   |-  3  -||-           4            -|
-			"/net/minecraft/minecraft/(.+)/minecraft-(.+)\\.(pom|jar)(.md5|.sha1|.sha256|.sha512)?"
+			// groups:				  |-         1        -| |2 |           |-         3        -| |4 |   |-  5  -||-           6            -|
+			"/net/minecraft/minecraft-(client|server|merged)/(.+)/minecraft-(client|server|merged)-(.+)\\.(pom|jar)(.md5|.sha1|.sha256|.sha512)?"
 	);
 
 	private static final Logger logger = Logging.getLogger(MinecraftMaven.class);
@@ -67,12 +71,19 @@ public final class MinecraftMaven {
 
 		MinecraftDefinitionImpl def = (MinecraftDefinitionImpl) this.defs.findByName(request.def);
 		if (def == null) {
-			throw new InvalidUserDataException("Minecraft definition '" + request.def + "' does not exist");
+			throw new IllegalStateException("Minecraft definition '" + request.def + "' does not exist");
 		}
 
 		String version = def.version();
+		Distribution dist = def.dist();
 
-		InputStream stream = this.getArtifact(version, def.dist(), def.getTransformers(), request);
+		// validate that the request matches
+		if (request.dist != dist || !request.version.equals(version)) {
+			throw new IllegalStateException("Malformed request for Minecraft definition " + request.def);
+		}
+
+
+		InputStream stream = this.getArtifact(version, dist, def.getTransformers(), request);
 		if (stream == null || request.hashAlgorithm.isEmpty())
 			return stream;
 
@@ -135,7 +146,7 @@ public final class MinecraftMaven {
 	private InputStream getPom(FullVersion version, Distribution dist, Request request) throws IOException {
 		Path template = this.cache.pomTemplates.get(version.id, dist);
 		if (!Files.exists(template)) {
-			PomGenerator.generate(version, template);
+			PomGenerator.generate(version, dist, template);
 		}
 
 		// file should now exist
@@ -152,9 +163,17 @@ public final class MinecraftMaven {
 		if (!matcher.matches())
 			return null;
 
+		// extract and verify dist
+		String dist1 = matcher.group(1);
+		String dist2 = matcher.group(3);
+		if (!dist1.equals(dist2))
+			return null;
+
+		Distribution dist = Distribution.ofName(dist1).orElseThrow();
+
 		// make sure both versions are the same
-		String version1 = matcher.group(1);
-		String version2 = matcher.group(2);
+		String version1 = matcher.group(2);
+		String version2 = matcher.group(4);
 
 		// -sources will get caught in group 2 if present, check for it
 		boolean sources = false;
@@ -166,15 +185,16 @@ public final class MinecraftMaven {
 		if (!version1.equals(version2))
 			return null;
 
-		// version is defName$hash, extract the name
-		int separator = version1.indexOf('$');
-		if (separator == -1)
+		// version is version$def$hash, extract the name
+		String[] split = version1.split("\\$");
+		if (split.length != 3)
 			return null;
 
-		String defName = version1.substring(0, separator);
-		String hash = version1.substring(separator + 1);
+		String version = split[0];
+		String defName = split[1];
+		String hash = split[2];
 
-		Artifact artifact = switch (matcher.group(3)) {
+		Artifact artifact = switch (matcher.group(5)) {
 			case "jar" -> sources ? Artifact.SOURCES : Artifact.JAR;
 			case "pom" -> Artifact.POM;
 			default -> null;
@@ -184,7 +204,7 @@ public final class MinecraftMaven {
 			return null;
 
 		HashAlgorithm hashAlgorithm;
-		switch (matcher.group(4)) {
+		switch (matcher.group(6)) {
 			case ".md5" -> hashAlgorithm = HashAlgorithm.MD5;
 			case ".sha1" -> hashAlgorithm = HashAlgorithm.SHA1;
 			case ".sha256" -> hashAlgorithm = HashAlgorithm.SHA256;
@@ -196,9 +216,9 @@ public final class MinecraftMaven {
 			}
 		}
 
-		logger.debug("Intercepted request for Minecraft definition {}, {}, {}", defName, artifact, hashAlgorithm);
+		logger.quiet("Intercepted request for Minecraft definition {}, {}, {}", defName, artifact, hashAlgorithm);
 
-		return new Request(defName, hash, artifact, Optional.ofNullable(hashAlgorithm));
+		return new Request(dist, version1, version, defName, hash, artifact, Optional.ofNullable(hashAlgorithm));
 	}
 
 	public static String createProtocol(Project project) {
@@ -221,10 +241,7 @@ public final class MinecraftMaven {
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '+' || c == '-' || c == '.') ? c : '-';
 	}
 
-	private record Request(String def, String hash, Artifact artifact, Optional<HashAlgorithm> hashAlgorithm) {
-		// the version specified in the pom needs to match what gradle requested exactly (defName$hash) or it'll be rejected
-		private String gradleRequestedVersion() {
-			return this.def + '$' + this.hash;
-		}
+	private record Request(Distribution dist, String gradleRequestedVersion, String version, String def,
+						   String hash, Artifact artifact, Optional<HashAlgorithm> hashAlgorithm) {
 	}
 }

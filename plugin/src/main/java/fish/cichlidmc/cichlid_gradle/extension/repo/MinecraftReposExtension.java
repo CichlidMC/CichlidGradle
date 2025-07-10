@@ -50,7 +50,7 @@ public final class MinecraftReposExtension {
 
         repos.exclusiveContent(exclusive -> exclusive.forRepositories(maven).filter(contents -> {
             contents.includeGroup(MinecraftMaven.GROUP);
-            contents.includeModule(MinecraftMaven.GROUP, MinecraftMaven.MODULE);
+            MinecraftMaven.MODULES.forEach(module -> contents.includeModule(MinecraftMaven.GROUP, module));
         }));
 
         return maven;

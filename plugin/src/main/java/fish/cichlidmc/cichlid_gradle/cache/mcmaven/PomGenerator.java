@@ -1,5 +1,6 @@
 package fish.cichlidmc.cichlid_gradle.cache.mcmaven;
 
+import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.XmlBuilder;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.pistonmetaparser.rule.Features;
@@ -19,11 +20,11 @@ import java.util.stream.Stream;
 public final class PomGenerator {
 	public static final String VERSION_PLACEHOLDER = "${version}";
 
-	public static void generate(FullVersion version, Path output) throws IOException {
+	public static void generate(FullVersion version, Distribution dist, Path output) throws IOException {
 		XmlBuilder.create().add(new XmlBuilder.XmlElement("project", List.of(
 				new XmlBuilder.XmlElement("modelVersion", "4.0.0"),
 				new XmlBuilder.XmlElement("groupId", "net.minecraft"),
-				new XmlBuilder.XmlElement("artifactId", "minecraft"),
+				new XmlBuilder.XmlElement("artifactId", "minecraft-" + dist.name),
 				new XmlBuilder.XmlElement("version", VERSION_PLACEHOLDER),
 				new XmlBuilder.XmlElement("dependencies", version.libraries.stream().flatMap(PomGenerator::makeDependencyElements).toList())
 		))).write(output);

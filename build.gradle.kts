@@ -18,7 +18,7 @@ repositories {
 
 val mc by minecraft.creating {
     version = "1.21.7"
-    distribution = Distribution.SERVER
+    distribution = Distribution.MERGED
 
     runs {
         register("server") {

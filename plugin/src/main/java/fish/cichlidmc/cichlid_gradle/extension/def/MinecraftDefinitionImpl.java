@@ -5,7 +5,6 @@ import fish.cichlidmc.cichlid_gradle.run.RunConfiguration;
 import fish.cichlidmc.cichlid_gradle.run.RunConfigurationImpl;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.Utils;
-import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
 import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.NamedDomainObjectContainer;
@@ -34,7 +33,7 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 
 	private final Provider<ExternalModuleDependency> dependency;
 
-	private String hash;
+	private DefHash hash;
 
 	public MinecraftDefinitionImpl(String name, Project project) {
 		if (name.contains("$")) {
@@ -56,9 +55,7 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 		this.transformers = TransformersImpl.of(name, project.getConfigurations());
 
 		DependencyFactory depFactory = project.getDependencyFactory();
-		this.dependency = project.getProviders().provider(
-				() -> depFactory.create("net.minecraft", "minecraft", name + '$' + this.hash())
-		);
+		this.dependency = project.getProviders().provider(() -> this.createDependency(depFactory));
 	}
 
 	@Override
@@ -103,7 +100,7 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 		return this.distribution.get();
 	}
 
-	private String hash() throws IOException {
+	public DefHash hash() throws IOException {
 		if (this.hash != null)
 			return this.hash;
 
@@ -126,7 +123,19 @@ public final class MinecraftDefinitionImpl implements MinecraftDefinition {
 			}
 		}
 
-		this.hash = Encoding.BASE_FUNNY.encode(digest.digest());
+		this.hash = DefHash.of(digest.digest());
 		return this.hash;
+	}
+
+	private ExternalModuleDependency createDependency(DependencyFactory factory) throws IOException {
+		String module = "minecraft-" + this.dist();
+		String version = this.version() + '$' + this.name + '$' + this.hash().shortString();
+		ExternalModuleDependency dep = factory.create("net.minecraft", module, version);
+
+		// set as changing so gradle only caches it for 24 hours.
+		// since the hash is short, collisions aren't out of the question over a long period of time.
+		dep.setChanging(true);
+
+		return dep;
 	}
 }
