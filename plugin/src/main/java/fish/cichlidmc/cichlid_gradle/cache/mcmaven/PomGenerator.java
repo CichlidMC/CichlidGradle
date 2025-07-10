@@ -9,12 +9,14 @@ import fish.cichlidmc.pistonmetaparser.version.library.Artifact;
 import fish.cichlidmc.pistonmetaparser.version.library.Classifier;
 import fish.cichlidmc.pistonmetaparser.version.library.Library;
 import fish.cichlidmc.pistonmetaparser.version.library.Natives;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class PomGenerator {
@@ -26,8 +28,23 @@ public final class PomGenerator {
 				new XmlBuilder.XmlElement("groupId", "net.minecraft"),
 				new XmlBuilder.XmlElement("artifactId", "minecraft-" + dist.name),
 				new XmlBuilder.XmlElement("version", VERSION_PLACEHOLDER),
-				new XmlBuilder.XmlElement("dependencies", version.libraries.stream().flatMap(PomGenerator::makeDependencyElements).toList())
+				new XmlBuilder.XmlElement("dependencies", makeDependencyElements(version, dist))
 		))).write(output);
+	}
+
+	private static List<XmlBuilder.XmlElement> makeDependencyElements(FullVersion version, Distribution dist) {
+		List<XmlBuilder.XmlElement> elements = version.libraries.stream()
+				.flatMap(PomGenerator::makeDependencyElements)
+				// explicitly collect to a mutable list
+				.collect(Collectors.toCollection(ArrayList::new));
+
+		// when merged, add a dependency on distmarker
+		if (dist == Distribution.MERGED) {
+			// I don't mind hardcoding this version here because it will hopefully never be updated again
+			elements.add(makeDependencyElement("fish.cichlidmc", "distribution-marker", "1.0.1", null));
+		}
+
+		return elements;
 	}
 
 	private static Stream<XmlBuilder.XmlElement> makeDependencyElements(Library library) {
@@ -38,13 +55,13 @@ public final class PomGenerator {
 		List<XmlBuilder.XmlElement> elements = new ArrayList<>();
 		Optional<Artifact> artifact = library.artifact;
 		if (artifact.isPresent()) {
-			elements.add(makeDependencyXml(library.name));
+			elements.add(makeDependencyElement(library.name));
 		}
 
 		Optional<Classifier> classifier = library.natives.flatMap(Natives::choose);
 		if (classifier.isPresent()) {
 			String notation = library.name + ':' + classifier.get().name;
-			elements.add(makeDependencyXml(notation));
+			elements.add(makeDependencyElement(notation));
 		}
 
 		if (elements.isEmpty()) {
@@ -54,17 +71,24 @@ public final class PomGenerator {
 		return elements.stream();
 	}
 
-	private static XmlBuilder.XmlElement makeDependencyXml(String notation) {
+	private static XmlBuilder.XmlElement makeDependencyElement(String notation) {
 		String[] split = notation.split(":");
-		XmlBuilder.XmlElement element = new XmlBuilder.XmlElement("dependency", new ArrayList<>(List.of(
-				new XmlBuilder.XmlElement("groupId", split[0]),
-				new XmlBuilder.XmlElement("artifactId", split[1]),
-				new XmlBuilder.XmlElement("version", split[2]),
+		String classifier = split.length > 3 ? split[3] : null;
+		return makeDependencyElement(split[0], split[1], split[2], classifier);
+	}
+
+	private static XmlBuilder.XmlElement makeDependencyElement(String group, String artifact, String version, @Nullable String classifier) {
+		List<XmlBuilder.XmlElement> children = new ArrayList<>(List.of(
+				new XmlBuilder.XmlElement("groupId", group),
+				new XmlBuilder.XmlElement("artifactId", artifact),
+				new XmlBuilder.XmlElement("version", version),
 				new XmlBuilder.XmlElement("scope", "compile")
-		)));
-		if (split.length > 3) {
-			element.children().add(new XmlBuilder.XmlElement("classifier", split[3]));
+		));
+
+		if (classifier != null) {
+			children.add(new XmlBuilder.XmlElement("classifier", classifier));
 		}
-		return element;
+
+		return new XmlBuilder.XmlElement("dependency", children);
 	}
 }

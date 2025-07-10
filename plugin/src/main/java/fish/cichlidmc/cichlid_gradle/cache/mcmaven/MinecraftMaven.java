@@ -216,7 +216,7 @@ public final class MinecraftMaven {
 			}
 		}
 
-		logger.quiet("Intercepted request for Minecraft definition {}, {}, {}", defName, artifact, hashAlgorithm);
+		logger.debug("Intercepted request for Minecraft definition {}, {}, {}", defName, artifact, hashAlgorithm);
 
 		return new Request(dist, version1, version, defName, hash, artifact, Optional.ofNullable(hashAlgorithm));
 	}
