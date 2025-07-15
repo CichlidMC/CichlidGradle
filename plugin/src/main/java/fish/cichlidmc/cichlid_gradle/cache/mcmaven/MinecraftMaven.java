@@ -7,6 +7,7 @@ import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.AssetsTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.ReassembleBinaryTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.impl.ReassembleSourcesTask;
+import fish.cichlidmc.cichlid_gradle.extension.def.DefHash;
 import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinition;
 import fish.cichlidmc.cichlid_gradle.extension.def.MinecraftDefinitionImpl;
 import fish.cichlidmc.cichlid_gradle.extension.def.TransformersImpl;
@@ -83,8 +84,7 @@ public final class MinecraftMaven {
 			throw new IllegalStateException("Malformed request for Minecraft definition " + request.def);
 		}
 
-
-		InputStream stream = this.getArtifact(version, dist, def.getTransformers(), request);
+		InputStream stream = this.getArtifact(version, dist, def.getTransformers(), def.hash(), request);
 		if (stream == null || request.hashAlgorithm.isEmpty())
 			return stream;
 
@@ -94,7 +94,7 @@ public final class MinecraftMaven {
 	}
 
 	@Nullable
-	private InputStream getArtifact(String versionId, Distribution dist, TransformersImpl transformers, Request request) throws IOException {
+	private InputStream getArtifact(String versionId, Distribution dist, TransformersImpl transformers, DefHash hash, Request request) throws IOException {
 		// see if this version actually exists
 		Version version = ManifestCache.getVersion(versionId);
 		if (version == null) {
@@ -118,14 +118,14 @@ public final class MinecraftMaven {
 		}
 
 		boolean needsAssets = dist.needsAssets() && !this.cache.assets.isComplete(fullVersion.assetIndex);
-		Path jar = this.cache.reassembledJars.get(versionId, request.hash, dist, request.artifact);
+		Path jar = this.cache.reassembledJars.get(versionId, hash.longString(), dist, request.artifact);
 		boolean needsJar = !Files.exists(jar);
 
 		if (!needsAssets && !needsJar) {
 			return Files.newInputStream(jar);
 		}
 
-		CacheTaskEnvironment.Builder builder = new CacheTaskEnvironment.Builder(request.hash, fullVersion, this.cache, dist, transformers);
+		CacheTaskEnvironment.Builder builder = new CacheTaskEnvironment.Builder(hash.longString(), fullVersion, this.cache, dist, transformers);
 
 		if (needsAssets) {
 			builder.add(AssetsTask::new);

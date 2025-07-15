@@ -14,10 +14,15 @@ public final class DecompiledClassStorage {
 	 * The inner classes are not cached individually.
 	 */
 	public Path get(String bytecodeHash) {
-		return this.root.resolve(bytecodeHash + ".java");
+		return this.get(bytecodeHash, "java");
 	}
 
 	public Path linemap(String bytecodeHash) {
-		return this.root.resolve(bytecodeHash + ".linemap");
+		return this.get(bytecodeHash, "linemap");
+	}
+
+	private Path get(String bytecodeHash, String extension) {
+		String start = bytecodeHash.substring(0, 2);
+		return this.root.resolve(start).resolve(bytecodeHash + '.' + extension);
 	}
 }
