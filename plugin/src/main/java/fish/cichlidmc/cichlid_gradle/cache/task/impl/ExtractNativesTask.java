@@ -1,5 +1,7 @@
 package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
+import fish.cichlidmc.cichlid_gradle.cache.storage.LockableStorage;
+import fish.cichlidmc.cichlid_gradle.cache.storage.NativesStorage;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.util.io.Download;
@@ -25,21 +27,30 @@ public class ExtractNativesTask extends CacheTask {
 	// class files are also skipped, since we're just extracting the entire jar. Cuts out most files.
 	public static final Predicate<String> FILE_FILTER = fileName -> !fileName.endsWith("META-INF") && !fileName.endsWith(".class");
 
+	private LockableStorage.Lock lock;
+
 	protected ExtractNativesTask(CacheTaskEnvironment env) {
 		super("Extract natives", env);
 	}
 
 	@Override
 	protected String run() throws IOException {
-		Path output = this.env.cache.getVersion(this.env.version.id).natives;
-		Files.createDirectories(output);
+		NativesStorage natives = this.env.cache.getVersion(this.env.version.id).natives;
+		this.lock = natives.lockLoudly();
 
 		List<Classifier> classifiers = getClassifiers(this.env.version);
 		for (Classifier classifier : classifiers) {
-			downloadAndExtract(output, classifier.artifact);
+			downloadAndExtract(natives.root, classifier.artifact);
 		}
 
 		return "Extracted natives from " + classifiers.size() + " jar(s)";
+	}
+
+	@Override
+	protected void cleanup() throws IOException {
+		if (this.lock != null) {
+			this.lock.close();
+		}
 	}
 
 	// note: rd-20090515 has the exact same jinput dependency twice for some reason, and is probably not the only weird one.

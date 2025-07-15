@@ -34,7 +34,7 @@ public class AssetsTask extends CacheTask {
 	@Override
 	public String run() throws IOException {
 		AssetStorage assets = this.env.cache.assets;
-		this.lock = assets.lockLoudly("Assets are currently locked by {}, awaiting release");
+		this.lock = assets.lockLoudly();
 		// see if it's done now
 		AssetIndex index = this.env.version.assetIndex;
 		if (assets.isComplete(index)) {

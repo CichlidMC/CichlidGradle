@@ -43,11 +43,14 @@ public class FileUtils {
 
     public static void ensureCreated(Path file) throws IOException {
         if (!Files.exists(file)) {
-            // can't use open option, gradle breaks it
             Path folder = file.getParent();
             if (folder != null) {
                 Files.createDirectories(folder);
             }
+
+            // this will throw if the file exists, which is theoretically possible as a race condition.
+            // I would love to just use CREATE instead of CREATE_NEW, but gradle breaks open options.
+            // if this ever actually throws, don't report it unless you also submit a PR with a solution.
             Files.createFile(file);
         }
     }
@@ -94,8 +97,9 @@ public class FileUtils {
                 String fileName = file.getFileName().toString();
                 if (filter.test(fileName)) {
                     Path fileDest = dest.resolve(root.relativize(file).toString());
-                    if (!Files.exists(fileDest))
+                    if (!Files.exists(fileDest)) {
                         FileUtils.copy(file, fileDest);
+                    }
                 }
             });
         }

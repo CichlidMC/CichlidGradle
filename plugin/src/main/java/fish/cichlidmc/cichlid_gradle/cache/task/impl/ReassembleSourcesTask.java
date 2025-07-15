@@ -6,6 +6,7 @@ import fish.cichlidmc.cichlid_gradle.cache.task.processor.ClassEntry;
 import fish.cichlidmc.cichlid_gradle.cache.task.processor.ClassGroup;
 import fish.cichlidmc.cichlid_gradle.cache.task.processor.JarProcessor;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
+import fish.cichlidmc.cichlid_gradle.util.io.WorkFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,7 +29,7 @@ public final class ReassembleSourcesTask extends CacheTask {
 			FileUtils.assertExists(binary);
 		}
 
-		JarProcessor.run(binary, output, this::getDecompiled);
+		WorkFile.doIfEmpty(output, file -> JarProcessor.run(binary, file.path, this::getDecompiled));
 		return null;
 	}
 

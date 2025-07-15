@@ -2,6 +2,7 @@ package fish.cichlidmc.cichlid_gradle.cache.mcmaven;
 
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.XmlBuilder;
+import fish.cichlidmc.cichlid_gradle.util.io.WorkFile;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.pistonmetaparser.rule.Features;
 import fish.cichlidmc.pistonmetaparser.rule.Rule;
@@ -12,6 +13,8 @@ import fish.cichlidmc.pistonmetaparser.version.library.Natives;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,14 +25,17 @@ import java.util.stream.Stream;
 public final class PomGenerator {
 	public static final String VERSION_PLACEHOLDER = "${version}";
 
-	public static void generate(FullVersion version, Distribution dist, Path output) throws IOException {
-		XmlBuilder.create().add(new XmlBuilder.XmlElement("project", List.of(
-				new XmlBuilder.XmlElement("modelVersion", "4.0.0"),
-				new XmlBuilder.XmlElement("groupId", "net.minecraft"),
-				new XmlBuilder.XmlElement("artifactId", "minecraft-" + dist.name),
-				new XmlBuilder.XmlElement("version", VERSION_PLACEHOLDER),
-				new XmlBuilder.XmlElement("dependencies", makeDependencyElements(version, dist))
-		))).write(output);
+	public static void tryGenerate(FullVersion version, Distribution dist, Path output) throws IOException {
+		WorkFile.doIfEmpty(output, file -> {
+			OutputStream stream = Channels.newOutputStream(file.channel);
+			XmlBuilder.create().add(new XmlBuilder.XmlElement("project", List.of(
+					new XmlBuilder.XmlElement("modelVersion", "4.0.0"),
+					new XmlBuilder.XmlElement("groupId", "net.minecraft"),
+					new XmlBuilder.XmlElement("artifactId", "minecraft-" + dist.name),
+					new XmlBuilder.XmlElement("version", VERSION_PLACEHOLDER),
+					new XmlBuilder.XmlElement("dependencies", makeDependencyElements(version, dist))
+			))).write(stream);
+		});
 	}
 
 	private static List<XmlBuilder.XmlElement> makeDependencyElements(FullVersion version, Distribution dist) {

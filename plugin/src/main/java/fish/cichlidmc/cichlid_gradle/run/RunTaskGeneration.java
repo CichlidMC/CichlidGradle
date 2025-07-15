@@ -65,7 +65,7 @@ public class RunTaskGeneration {
 			task.jvmArgs("-javaagent:" + cichlid.getAbsolutePath() + "=dist=" + dist + ",version=" + version);
 
 			Placeholders.DynamicContext ctx = new Placeholders.DynamicContext(
-					runDir.toPath(), storage.natives, cache.assets.root
+					runDir.toPath(), storage.natives.root, cache.assets.root
 			);
 			task.args(getArgs(config.getProgramArgs(), template.programArgs(), ctx));
 			task.jvmArgs(getArgs(config.getJvmArgs(), template.jvmArgs(), ctx));

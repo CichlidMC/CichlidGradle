@@ -1,5 +1,6 @@
 package fish.cichlidmc.cichlid_gradle.cache.task.impl;
 
+import fish.cichlidmc.cichlid_gradle.cache.storage.LockableStorage;
 import fish.cichlidmc.cichlid_gradle.cache.storage.VersionStorage;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTask;
 import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
@@ -31,6 +32,8 @@ import java.util.jar.JarFile;
 public class SetupTask extends CacheTask {
 	private static final Logger logger = Logging.getLogger(SetupTask.class);
 
+	private LockableStorage.Lock lock;
+
 	public SetupTask(CacheTaskEnvironment env) {
 		super("Setup " + env.dist, env);
 
@@ -53,6 +56,7 @@ public class SetupTask extends CacheTask {
 		Download mappingsDownload = this.env.dist.choose(downloads.clientMappings, downloads.serverMappings).orElseThrow();
 
 		VersionStorage storage = this.env.cache.getVersion(this.env.version.id);
+		this.lock = storage.lockLoudly();
 
 		Path jar = storage.jars.get(this.env.dist);
 		// jar goes to a temp file first for remapping
@@ -102,6 +106,13 @@ public class SetupTask extends CacheTask {
 		storage.runs.writeTemplate(this.env.dist.name, template);
 
 		return null;
+	}
+
+	@Override
+	protected void cleanup() throws IOException {
+		if (this.lock != null) {
+			this.lock.close();
+		}
 	}
 
 	private void tryUnbundle(Path serverTempJar, VersionStorage storage) throws IOException {

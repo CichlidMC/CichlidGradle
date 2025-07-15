@@ -13,6 +13,7 @@ import fish.cichlidmc.cichlid_gradle.extension.def.TransformersImpl;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
 import fish.cichlidmc.cichlid_gradle.util.hash.Encoding;
 import fish.cichlidmc.cichlid_gradle.util.hash.HashAlgorithm;
+import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import fish.cichlidmc.pistonmetaparser.FullVersion;
 import fish.cichlidmc.pistonmetaparser.manifest.Version;
 import org.gradle.api.InvalidUserDataException;
@@ -145,9 +146,9 @@ public final class MinecraftMaven {
 
 	private InputStream getPom(FullVersion version, Distribution dist, Request request) throws IOException {
 		Path template = this.cache.pomTemplates.get(version.id, dist);
-		if (!Files.exists(template)) {
-			PomGenerator.generate(version, dist, template);
-		}
+
+		PomGenerator.tryGenerate(version, dist, template);
+		FileUtils.assertExists(template);
 
 		// file should now exist
 		String content = Files.readString(template);

@@ -39,9 +39,9 @@ public final class DecompileTask extends CacheTask {
 
 		if (!Files.exists(input)) {
 			this.env.submitAndAwait(ReassembleBinaryTask::new);
+			FileUtils.assertExists(input);
 		}
 
-		FileUtils.assertExists(input);
 		closeVineflowerFilesystem();
 
 		try (FileSystem fs = FileSystems.newFileSystem(input)) {

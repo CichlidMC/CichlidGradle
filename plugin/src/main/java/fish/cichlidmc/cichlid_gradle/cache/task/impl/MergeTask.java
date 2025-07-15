@@ -6,6 +6,7 @@ import fish.cichlidmc.cichlid_gradle.cache.task.CacheTaskEnvironment;
 import fish.cichlidmc.cichlid_gradle.merge.JarMerger;
 import fish.cichlidmc.cichlid_gradle.merge.MergeSource;
 import fish.cichlidmc.cichlid_gradle.util.Distribution;
+import fish.cichlidmc.cichlid_gradle.util.io.WorkFile;
 import fish.cichlidmc.distmarker.Dist;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,25 +26,30 @@ public class MergeTask extends CacheTask {
 	@Override
 	protected String run() throws IOException {
 		JarsStorage jars = this.env.cache.getVersion(this.env.version.id).jars;
+		Path output = jars.get(Distribution.MERGED);
 
-		List<CompletableFuture<@Nullable MergeSource>> futures = new ArrayList<>();
+		List<MergeSource> sources = WorkFile.getIfEmpty(output, file -> {
+			List<CompletableFuture<@Nullable MergeSource>> futures = new ArrayList<>();
 
-		futures.add(this.createFuture(Distribution.CLIENT, jars));
-		CompletableFuture<MergeSource> server = this.createFuture(Distribution.SERVER, jars);
-		futures.add(server);
+			futures.add(this.createFuture(Distribution.CLIENT, jars));
+			CompletableFuture<MergeSource> server = this.createFuture(Distribution.SERVER, jars);
+			futures.add(server);
 
-		// need to wait for the server to be done before checking for the bundler
-		futures.add(server.thenApply(ignored -> {
-			Path bundler = jars.get(Dist.BUNDLER);
-			return Files.exists(bundler) ? MergeSource.createUnchecked(Dist.BUNDLER, bundler) : null;
-		}));
+			// need to wait for the server to be done before checking for the bundler
+			futures.add(server.thenApply(ignored -> {
+				Path bundler = jars.get(Dist.BUNDLER);
+				return Files.exists(bundler) ? MergeSource.createUnchecked(Dist.BUNDLER, bundler) : null;
+			}));
 
-		List<MergeSource> sources = futures.stream()
-				.map(CompletableFuture::join)
-				.filter(Objects::nonNull)
-				.toList();
+			List<MergeSource> readySources = futures.stream()
+					.map(CompletableFuture::join)
+					.filter(Objects::nonNull)
+					.toList();
 
-		JarMerger.merge(sources, jars.get(Distribution.MERGED));
+			JarMerger.merge(readySources, output);
+			return readySources;
+		}).orElseGet(List::of);
+
 		return "Merged " + sources.size() + " sources: " + sources;
 	}
 

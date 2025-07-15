@@ -50,14 +50,14 @@ public abstract class LockableStorage {
 		return Lock.tryCreate(this.lock, this.lockFile);
 	}
 
-	public Lock lockLoudly(String message) throws IOException {
+	public Lock lockLoudly() throws IOException {
 		Either<Lock, Lock.Owner> either = this.tryLock();
 		if (either.isLeft()) {
 			return either.left();
 		}
 
 		Lock.Owner reason = either.right();
-		logger.quiet(message, reason);
+		logger.quiet("{}: Currently locked by {}, awaiting release", this.getClass().getSimpleName(), reason);
 		return this.lock();
 	}
 

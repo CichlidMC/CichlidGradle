@@ -12,5 +12,5 @@ pluginManagement {
     includeBuild("plugin")
 }
 
-//include("subProject")
-//includeBuild("subBuild")
+include("subProject")
+includeBuild("subBuild")
