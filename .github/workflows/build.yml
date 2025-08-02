@@ -42,8 +42,8 @@ jobs:
 
       -   name: Publish Release
           if: ${{ github.event.inputs.publish == 'release' }}
-          run: ./gradlew publishAllPublicationsToDevOsReleasesRepository -PdevOsReleasesUsername=cichlidmc -PdevOsReleasesPassword="${{ secrets.DEVOS_PASS }}"
+          run: ./gradlew :plugin:publishAllPublicationsToDevOsReleasesRepository -PdevOsReleasesUsername=cichlidmc -PdevOsReleasesPassword="${{ secrets.DEVOS_PASS }}"
 
       -   name: Publish Snapshot
           if: ${{ github.event.inputs.publish == 'snapshot' }}
-          run: ./gradlew publishAllPublicationsToDevOsSnapshotsRepository -PdevOsSnapshotsUsername=cichlidmc -PdevOsSnapshotsPassword="${{ secrets.DEVOS_PASS }}"
+          run: ./gradlew :plugin:publishAllPublicationsToDevOsSnapshotsRepository -PdevOsSnapshotsUsername=cichlidmc -PdevOsSnapshotsPassword="${{ secrets.DEVOS_PASS }}"
