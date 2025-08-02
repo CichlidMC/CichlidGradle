@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Applies a function to every class within a jar file, and places the results in a new output jar.
@@ -21,35 +23,32 @@ import java.util.Objects;
  */
 public final class JarProcessor {
 	// 🮲🮳
-	public static void run(Path inputJar, Path outputJar, ClassProcessor function) throws IOException {
-		FileUtils.initEmptyZip(outputJar);
-
-		try (FileSystem inputFs = FileSystems.newFileSystem(inputJar); FileSystem outputFs = FileSystems.newFileSystem(outputJar)) {
+	public static void run(Path inputJar, ZipOutputStream output, ClassProcessor function) throws IOException {
+		try (FileSystem inputFs = FileSystems.newFileSystem(inputJar)) {
 			// jars should have 1 root
 			Path inputRoot = FileUtils.getSingleRoot(inputFs);
-			Path outputRoot = FileUtils.getSingleRoot(outputFs);
 
 			Input input = collectInput(inputRoot);
 			for (ClassGroup group : input.groups.values()) {
 				ClassGroup processed = function.apply(group);
 
-				addEntry(outputRoot, processed.main());
+				addEntry(output, processed.main());
 				for (ClassEntry inner : processed.inner()) {
-					addEntry(outputRoot, inner);
+					addEntry(output, inner);
 				}
 			}
 
 			for (Path nonClass : input.nonClasses) {
-				Path relative = inputRoot.relativize(nonClass);
-				Path target = outputRoot.resolve(relative);
-				FileUtils.copy(nonClass, target);
+				String relative = FileUtils.safeRelativize(inputRoot, nonClass);
+				output.putNextEntry(new ZipEntry(relative));
+				FileUtils.copy(nonClass, output);
 			}
 		}
 	}
 
-	private static void addEntry(Path outputRoot, ClassEntry entry) throws IOException {
-		Path target = outputRoot.resolve(entry.fileName());
-		entry.content().write(target);
+	private static void addEntry(ZipOutputStream output, ClassEntry entry) throws IOException {
+		output.putNextEntry(new ZipEntry(entry.fileName()));
+		entry.content().write(output);
 	}
 
 	public static Input collectInput(Path inputRoot) throws IOException {
@@ -58,7 +57,7 @@ public final class JarProcessor {
 
 		FileUtils.walkFiles(inputRoot, entry -> {
 			// net/minecraft/ClassName$Inner.(class/java)
-			String name = inputRoot.relativize(entry).toString();
+			String name = FileUtils.safeRelativize(inputRoot, entry);
 
 			if (!name.endsWith(".java") && !name.endsWith(".class")) {
 				nonClasses.add(entry);

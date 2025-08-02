@@ -3,23 +3,29 @@ package fish.cichlidmc.cichlid_gradle.merge;
 import fish.cichlidmc.cichlid_gradle.merge.element.FieldMerger;
 import fish.cichlidmc.cichlid_gradle.merge.element.InterfacesMerger;
 import fish.cichlidmc.cichlid_gradle.merge.element.MethodMerger;
-import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 import fish.cichlidmc.distmarker.Dist;
 import fish.cichlidmc.distmarker.Distribution;
-import org.objectweb.asm.*;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ClassMerger {
     private static final FieldMerger fieldMerger = new FieldMerger();
     private static final MethodMerger methodMerger = new MethodMerger();
 
-    public static void mergeClass(Map<MergeSource, Path> sources, Path dest) throws IOException {
+    public static void mergeClass(Map<MergeSource, Path> sources, OutputStream output) throws IOException {
         // merge fields, methods, and constructors
         Map<MergeSource, ClassNode> classes = new HashMap<>();
         for (Map.Entry<MergeSource, Path> entry : sources.entrySet()) {
@@ -39,7 +45,7 @@ public class ClassMerger {
         methodMerger.merge(classes, mergedNode);
         InterfacesMerger.merge(classes, mergedNode);
 
-        writeClass(mergedNode, dest);
+        writeClass(mergedNode, output);
     }
 
     private static void assertCommonAttributesMatch(Map<MergeSource, ClassNode> classes) {
@@ -66,12 +72,12 @@ public class ClassMerger {
         return writer.toByteArray();
     }
 
-    public static void copyExclusiveClass(Path path, Path dest, Dist dist) throws IOException {
+    public static void copyExclusiveClass(Path path, OutputStream output, Dist dist) throws IOException {
         ClassNode node = readClass(path);
         if (node.visibleAnnotations == null)
             node.visibleAnnotations = new ArrayList<>();
         node.visibleAnnotations.add(makeDistAnnotation(dist));
-        writeClass(node, dest);
+        writeClass(node, output);
     }
 
     private static ClassNode readClass(Path path) throws IOException {
@@ -81,12 +87,11 @@ public class ClassMerger {
         return node;
     }
 
-    private static void writeClass(ClassNode node, Path path) throws IOException {
+    private static void writeClass(ClassNode node, OutputStream output) throws IOException {
         ClassWriter writer = new ClassWriter(0);
         node.accept(writer);
         byte[] bytes = writer.toByteArray();
-        FileUtils.ensureCreated(path);
-        Files.write(path, bytes);
+        output.write(bytes);
     }
 
     public static AnnotationNode makeDistAnnotation(Dist dist) {

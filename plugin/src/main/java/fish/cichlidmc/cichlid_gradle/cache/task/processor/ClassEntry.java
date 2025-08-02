@@ -3,6 +3,7 @@ package fish.cichlidmc.cichlid_gradle.cache.task.processor;
 import fish.cichlidmc.cichlid_gradle.util.io.FileUtils;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -34,9 +35,8 @@ public record ClassEntry(String fileName, Content content) {
 	public interface Content {
 		byte[] bytes() throws IOException;
 
-		default void write(Path output) throws IOException {
-			FileUtils.ensureCreated(output);
-			Files.write(output, this.bytes());
+		default void write(OutputStream output) throws IOException {
+			output.write(this.bytes());
 		}
 	}
 
@@ -50,7 +50,7 @@ public record ClassEntry(String fileName, Content content) {
 		}
 
 		@Override
-		public void write(Path output) throws IOException {
+		public void write(OutputStream output) throws IOException {
 			FileUtils.copy(this.path, output);
 		}
 	}

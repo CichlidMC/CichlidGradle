@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.zip.ZipOutputStream;
 
 public class MergeTask extends CacheTask {
 	public MergeTask(CacheTaskEnvironment env) {
@@ -46,7 +47,10 @@ public class MergeTask extends CacheTask {
 					.filter(Objects::nonNull)
 					.toList();
 
-			JarMerger.merge(readySources, output);
+			try (ZipOutputStream outputStream = new ZipOutputStream(file.newOutputStream())) {
+				JarMerger.merge(readySources, outputStream);
+			}
+
 			return readySources;
 		}).orElseGet(List::of);
 

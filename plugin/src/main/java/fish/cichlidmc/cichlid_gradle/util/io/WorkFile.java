@@ -1,9 +1,11 @@
 package fish.cichlidmc.cichlid_gradle.util.io;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
@@ -35,6 +37,11 @@ public final class WorkFile implements AutoCloseable {
 		this.fileLock = fileLock;
 	}
 
+	public OutputStream newOutputStream() {
+		// prevent early closing of the stream, because that will break the lock
+		return new BufferedOutputStream(new NonCloseableOutputStream(Channels.newOutputStream(this.channel)));
+	}
+
 	/**
 	 * Commit this file, closing it in the process.
 	 */
@@ -55,7 +62,8 @@ public final class WorkFile implements AutoCloseable {
 		this.closed = true;
 
 		if (!this.committed) {
-			Files.delete(this.path);
+			// reset any work that's been done
+			this.channel.truncate(0);
 		}
 
 		this.fileLock.close();

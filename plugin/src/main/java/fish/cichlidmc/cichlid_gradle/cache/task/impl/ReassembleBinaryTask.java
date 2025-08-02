@@ -9,6 +9,7 @@ import fish.cichlidmc.cichlid_gradle.util.io.WorkFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.ZipOutputStream;
 
 public final class ReassembleBinaryTask extends CacheTask {
 	public ReassembleBinaryTask(CacheTaskEnvironment env) {
@@ -25,7 +26,11 @@ public final class ReassembleBinaryTask extends CacheTask {
 			FileUtils.assertExists(input);
 		}
 
-		WorkFile.doIfEmpty(output, file -> JarProcessor.run(input, file.path, ClassTransformer.create(this.env)));
+		WorkFile.doIfEmpty(output, file -> {
+			try (ZipOutputStream outputStream = new ZipOutputStream(file.newOutputStream())) {
+				JarProcessor.run(input, outputStream, ClassTransformer.create(this.env));
+			}
+		});
 		return null;
 	}
 }

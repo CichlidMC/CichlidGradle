@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URLConnection;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileSystem;
@@ -25,7 +26,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import java.util.zip.ZipOutputStream;
 
 public class FileUtils {
     public static final Comparator<File> FILE_COMPARATOR = Comparator.comparing(File::getPath);
@@ -96,7 +96,7 @@ public class FileUtils {
             walkFiles(root, file -> {
                 String fileName = file.getFileName().toString();
                 if (filter.test(fileName)) {
-                    Path fileDest = dest.resolve(root.relativize(file).toString());
+                    Path fileDest = dest.resolve(root.relativize(file));
                     if (!Files.exists(fileDest)) {
                         FileUtils.copy(file, fileDest);
                     }
@@ -146,6 +146,12 @@ public class FileUtils {
         Files.copy(from, to);
     }
 
+    public static void copy(Path from, OutputStream output) throws IOException {
+        try (InputStream input = Files.newInputStream(from)) {
+            input.transferTo(output);
+        }
+    }
+
     public static void move(Path from, Path to) throws IOException {
         Path parent = to.getParent();
         if (parent != null)
@@ -155,6 +161,15 @@ public class FileUtils {
         } catch (AtomicMoveNotSupportedException ignored) {
             Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    /**
+     * Relativize the given path against the given reference, and also normalize separators into forward slashes.
+     */
+    public static String safeRelativize(Path reference, Path path) {
+        Path relative = reference.relativize(path);
+        String separator = relative.getFileSystem().getSeparator();
+        return relative.toString().replace(separator, "/");
     }
 
     public static Path createTempFile(Path target) throws IOException {
@@ -167,13 +182,5 @@ public class FileUtils {
         Path dir = target.getParent();
         Files.createDirectories(dir);
         return Files.createTempDirectory(dir, target.getFileName().toString());
-    }
-
-    public static void initEmptyZip(Path path) throws IOException {
-        // gradle breaks creation FileOpenOptions, need to manually set up the jar
-        ensureCreated(path);
-        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
-            out.finish();
-        }
     }
 }

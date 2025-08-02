@@ -11,6 +11,7 @@ import fish.cichlidmc.cichlid_gradle.util.io.WorkFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.ZipOutputStream;
 
 public final class ReassembleSourcesTask extends CacheTask {
 	private boolean ranDecompile;
@@ -29,7 +30,11 @@ public final class ReassembleSourcesTask extends CacheTask {
 			FileUtils.assertExists(binary);
 		}
 
-		WorkFile.doIfEmpty(output, file -> JarProcessor.run(binary, file.path, this::getDecompiled));
+		WorkFile.doIfEmpty(output, file -> {
+			try (ZipOutputStream outputStream = new ZipOutputStream(file.newOutputStream())) {
+				JarProcessor.run(binary, outputStream, this::getDecompiled);
+			}
+		});
 		return null;
 	}
 

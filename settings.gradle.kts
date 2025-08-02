@@ -3,6 +3,7 @@ enableFeaturePreview("STABLE_CONFIGURATION_CACHE")
 
 pluginManagement {
     repositories {
+        gradlePluginPortal()
         // all dependencies need to be available too
         mavenCentral()
         maven("https://mvn.devos.one/releases")
@@ -12,5 +13,5 @@ pluginManagement {
     includeBuild("plugin")
 }
 
-include("subProject")
-includeBuild("subBuild")
+//include("subProject")
+//includeBuild("subBuild")

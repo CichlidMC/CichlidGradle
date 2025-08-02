@@ -108,7 +108,7 @@ public record ClassTransformer(TransformerManager manager) implements JarProcess
 
 	private static void readTransformersFromTree(String namespace, Path root, TransformerManager.Builder builder) throws IOException {
 		FileUtils.walkFiles(root, file -> {
-			String relative = root.relativize(file).toString();
+			String relative = FileUtils.safeRelativize(root, file);
 			if (!relative.endsWith(".sushi"))
 				return;
 
