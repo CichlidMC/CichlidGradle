@@ -61,8 +61,13 @@ public class RunTaskGeneration {
 			task.setWorkingDir(runDir);
 			task.doFirst($ -> runDir.mkdirs());
 
+			String distArg = switch (config.getType().get()) {
+				case CLIENT -> "client";
+				case SERVER -> "dedicated_server";
+			};
+
 			File cichlid = project.getConfigurations().getByName(CichlidGradlePlugin.CICHLID_CONFIGURATION).getSingleFile();
-			task.jvmArgs("-javaagent:" + cichlid.getAbsolutePath() + "=dist=" + dist + ",version=" + version);
+			task.jvmArgs("-javaagent:" + cichlid.getAbsolutePath() + "=dist=" + distArg + ",version=" + version);
 
 			Placeholders.DynamicContext ctx = new Placeholders.DynamicContext(
 					runDir.toPath(), storage.natives.root, cache.assets.root

@@ -21,6 +21,10 @@ val mc by minecraft.creating {
     distribution = Distribution.MERGED
 
     runs {
+        register("client") {
+            client()
+        }
+
         register("server") {
             server()
         }
