@@ -86,13 +86,17 @@ public class RunTaskGeneration {
 
 	private static void mergeSystemProperties(List<String> args) {
 		for (int i = 0; i < args.size(); i++) {
-			String key = args.get(i);
-			if (!key.startsWith("-D") || i + 1 >= args.size())
+			if (i + 1 >= args.size()) {
+				// at the end, nothing to merge
 				continue;
+			}
 
-			String value = args.get(i + 1);
-			args.set(i, key + '=' + value);
-			args.remove(i + 1);
+			String key = args.get(i);
+			if (key.startsWith("-D") || key.startsWith("-X")) {
+				String value = args.get(i + 1);
+				args.set(i, key + '=' + value);
+				args.remove(i + 1);
+			}
 		}
 	}
 
